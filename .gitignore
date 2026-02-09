@@ -1,34 +1,32 @@
-# Prerequisites
-*.d
+# Build directories
+build/
+cmake-build-*/
+out/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
 
 # Compiled Object files
-*.slo
-*.lo
 *.o
 *.obj
+*.elf
 
 # Precompiled Headers
 *.gch
 *.pch
-
-# Linker files
-*.ilk
-
-# Debugger Files
-*.pdb
 
 # Compiled Dynamic libraries
 *.so
 *.dylib
 *.dll
 
-# Fortran module files
-*.mod
-*.smod
-
 # Compiled Static libraries
-*.lai
-*.la
 *.a
 *.lib
 
@@ -36,6 +34,33 @@
 *.exe
 *.out
 *.app
+ome_main
+ome_test
+ome_bench
 
-# debug information files
-*.dwo
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Test and benchmark results
+test_results/
+bench_results/
+*.log
+
+# Coverage and profiling
+*.gcda
+*.gcno
+*.gcov
+coverage/
+*.profdata
+*.profraw
+
+# Sanitizer output
+*.san
+
+# Dependencies
+_deps/
