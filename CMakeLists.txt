@@ -54,6 +54,9 @@ add_executable(ome_main src/main.cpp)
 add_executable(ome_test test/test_main.cpp)
 target_link_libraries(ome_test GTest::gtest_main)
 
+add_executable(test_price test/test_price.cpp)
+target_link_libraries(test_price GTest::gtest_main)
+
 # Register tests with CTest
 include(GoogleTest)
 gtest_discover_tests(ome_test)

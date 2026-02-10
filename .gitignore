@@ -64,3 +64,6 @@ coverage/
 
 # Dependencies
 _deps/
+
+# Other
+program.md
