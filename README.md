@@ -10,7 +10,7 @@ A high-performance limit order matching engine implemented in modern C++17.
 
 - [ ] Phase 1: Core Matching Engine (Days 1-10)
   - [x] Day 1: Project Setup & Build System
-  - [ ] Day 2: Price Representation & Core Enums
+  - [x] Day 2: Price Representation & Core Enums
   - [ ] Day 3: Order Struct
   - [ ] Day 4: PriceLevel Class
   - [ ] Day 5-10: OrderBook & Matching Logic
@@ -55,3 +55,90 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ## Documentation
 
 See [docs/DESIGN.md](docs/DESIGN.md) for architectural decisions and implementation details.
+
+## Development Timeline
+
+This project follows a 25-day structured implementation plan. Each day's work is tagged for easy reference and code review.
+
+### Git Tag Index
+
+| Tag | Date | Description | Status |
+|-----|------|-------------|--------|
+| [`day-1`](../../tree/day-1) | Feb 9, 2026 | Project setup & build system | ✅ Complete |
+| [`day-2`](../../tree/day-2) | Feb 10, 2026 | Price representation & core enums | ✅ Complete |
+| `day-3` | Feb 11, 2026 | Order struct | 🚧 In Progress |
+| `day-4` | Feb 12, 2026 | PriceLevel class | ⏳ Planned |
+| `day-5` | Feb 13, 2026 | OrderBook data structures | ⏳ Planned |
+| `day-6` | Feb 14, 2026 | OrderBook cancel & BBO | ⏳ Planned |
+| `day-7` | Feb 15, 2026 | Limit order matching | ⏳ Planned |
+| `day-8` | Feb 16, 2026 | Multi-level matching | ⏳ Planned |
+| `day-9` | Feb 17, 2026 | Trade output & events | ⏳ Planned |
+| `day-10` | Feb 18, 2026 | **Phase 1 complete** | ⏳ Planned |
+| | | |
+| **Milestone** | | [`v0.1.0-core`](../../tree/v0.1.0-core) | Phase 1: Core matching engine |
+| `day-11` | Feb 19, 2026 | Market orders | ⏳ Planned |
+| `day-12` | Feb 20, 2026 | IOC orders | ⏳ Planned |
+| `day-13` | Feb 21, 2026 | FOK orders | ⏳ Planned |
+| `day-14` | Feb 22, 2026 | Order amendments | ⏳ Planned |
+| `day-15` | Feb 23, 2026 | **Phase 2 complete** | ⏳ Planned |
+| | | |
+| **Milestone** | | [`v0.2.0-extended`](../../tree/v0.2.0-extended) | Phase 2: Extended order types |
+| `day-16` | Feb 24, 2026 | Baseline benchmarks | ⏳ Planned |
+| `day-17` | Feb 25, 2026 | Memory pool | ⏳ Planned |
+| `day-18` | Feb 26, 2026 | Hot-path optimization | ⏳ Planned |
+| `day-19` | Feb 27, 2026 | Realistic benchmarks | ⏳ Planned |
+| `day-20` | Feb 28, 2026 | **Phase 3 complete** | ⏳ Planned |
+| | | |
+| **Milestone** | | [`v0.3.0-performance`](../../tree/v0.3.0-performance) | Phase 3: Performance optimization |
+| `day-21` | Mar 1, 2026 | SPSC lock-free queue | ⏳ Planned |
+| `day-22` | Mar 2, 2026 | Producer-consumer threading | ⏳ Planned |
+| `day-23` | Mar 3, 2026 | Market data API | ⏳ Planned |
+| `day-24` | Mar 4, 2026 | CI & documentation | ⏳ Planned |
+| `day-25` | Mar 5, 2026 | **Final release** | ⏳ Planned |
+| | | |
+| **Milestone** | | [`v1.0.0`](../../tree/v1.0.0) | 🚀 Production-ready order matching engine |
+
+### Quick Navigation
+
+```bash
+# View code at any point in development
+git checkout day-2    # See Day 2: Price implementation
+git checkout day-10   # See Phase 1 completion
+git checkout v1.0.0   # See final version
+
+# Compare progress between days
+git diff day-1..day-2
+git diff day-5..day-10
+
+# Return to latest
+git checkout main
+```
+
+### Daily Progress Details
+
+<details>
+<summary><b>Day 1:</b> Project Setup & Build System</summary>
+
+- ✅ GitHub repository structure
+- ✅ CMake build system (C++17)
+- ✅ Compiler flags: `-Wall -Wextra -Wpedantic -Werror`
+- ✅ Google Test integration
+- ✅ Directory structure: `/include`, `/src`, `/test`
+- ✅ Hello-world compiles successfully
+</details>
+
+<details>
+<summary><b>Day 2:</b> Price Representation & Core Enums</summary>
+
+- ✅ Price type: `int64_t` fixed-point (4 decimal places)
+- ✅ Conversion functions: `to_price()`, `to_double()`, `price_to_string()`
+- ✅ `enum class Side { Buy, Sell }`
+- ✅ `enum class OrderType { Limit, Market, IOC, FOK }`
+- ✅ Comprehensive test suite: 7/7 tests passing
+- ✅ Edge cases: negatives, rounding, precision
+</details>
+
+---
+
+**Timeline:** 25 days (Feb 9 - Mar 5, 2026)
+**Target:** Production-ready order matching engine for portfolio/interviews
