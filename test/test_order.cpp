@@ -76,7 +76,7 @@ TEST(OrderIdTest, GenerateMany)
         ids.push_back(generate_order_id());
     }
 
-    for (size_t i = 0; i < ids.size() - 1; ++i)
+    for (std::size_t i = 0; i < ids.size() - 1; ++i)
     {
         EXPECT_LT(ids[i], ids[i + 1]);
     }
