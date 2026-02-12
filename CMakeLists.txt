@@ -47,24 +47,28 @@ FetchContent_MakeAvailable(googletest)
 # Enable testing
 enable_testing()
 
+# Create a library for all source files (reusable across executables)
+add_library(ome_lib
+    src/price_level.cpp
+)
+target_include_directories(ome_lib PUBLIC ${PROJECT_SOURCE_DIR}/include)
+
 # Main executable
 add_executable(ome_main src/main.cpp)
+target_link_libraries(ome_main ome_lib)
 
-# Test executable
-add_executable(ome_test test/test_main.cpp)
-target_link_libraries(ome_test GTest::gtest_main)
-
-add_executable(test_price test/test_price.cpp)
-target_link_libraries(test_price GTest::gtest_main)
-
-add_executable(test_order test/test_order.cpp)
-target_link_libraries(test_order GTest::gtest_main)
+# Single test executable with all tests
+add_executable(ome_tests
+    test/test_main.cpp
+    test/test_price.cpp
+    test/test_order.cpp
+    test/test_price_level.cpp
+)
+target_link_libraries(ome_tests ome_lib GTest::gtest_main)
 
 # Register tests with CTest
 include(GoogleTest)
-gtest_discover_tests(ome_test)
-gtest_discover_tests(test_price)
-gtest_discover_tests(test_order)
+gtest_discover_tests(ome_tests)
 
 # Print build configuration
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")

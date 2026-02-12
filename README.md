@@ -11,8 +11,8 @@ A high-performance limit order matching engine implemented in modern C++17.
 - [ ] Phase 1: Core Matching Engine (Days 1-10)
   - [x] Day 1: Project Setup & Build System
   - [x] Day 2: Price Representation & Core Enums
-  - [ ] Day 3: Order Struct
-  - [ ] Day 4: PriceLevel Class
+  - [x] Day 3: Order Struct
+  - [x] Day 4: PriceLevel Class
   - [ ] Day 5-10: OrderBook & Matching Logic
 - [ ] Phase 2: Extended Order Types (Days 11-15)
 - [ ] Phase 3: Performance Optimization (Days 16-20)
@@ -66,8 +66,8 @@ This project follows a 25-day structured implementation plan. Each day's work is
 |-----|------|-------------|--------|
 | [`day-1`](../../tree/day-1) | Feb 9, 2026 | Project setup & build system | ✅ Complete |
 | [`day-2`](../../tree/day-2) | Feb 10, 2026 | Price representation & core enums | ✅ Complete |
-| `day-3` | Feb 11, 2026 | Order struct | 🚧 In Progress |
-| `day-4` | Feb 12, 2026 | PriceLevel class | ⏳ Planned |
+| [`day-3`](../../tree/day-3) | Feb 11, 2026 | Order struct | ✅ Complete |
+| [`day-4`](../../tree/day-4) | Feb 12, 2026 | PriceLevel class | ✅ Complete |
 | `day-5` | Feb 13, 2026 | OrderBook data structures | ⏳ Planned |
 | `day-6` | Feb 14, 2026 | OrderBook cancel & BBO | ⏳ Planned |
 | `day-7` | Feb 15, 2026 | Limit order matching | ⏳ Planned |
@@ -136,6 +136,32 @@ git checkout main
 - ✅ `enum class OrderType { Limit, Market, IOC, FOK }`
 - ✅ Comprehensive test suite: 7/7 tests passing
 - ✅ Edge cases: negatives, rounding, precision
+</details>
+
+<details>
+<summary><b>Day 3:</b> Order Struct</summary>
+
+- ✅ Order struct with all required fields (order_id, symbol_id, side, price, quantity, timestamp, order_type)
+- ✅ Cache-line optimized: `sizeof(Order) <= 64 bytes`
+- ✅ OrderId generator: atomic counter for unique, monotonic IDs
+- ✅ Timestamp helper: nanosecond precision using `std::chrono::steady_clock`
+- ✅ Debug output operator `operator<<` for Order
+- ✅ Comprehensive test suite: 11 tests passing
+- ✅ Thread-safety verified for ID generation
+</details>
+
+<details>
+<summary><b>Day 4:</b> PriceLevel Class</summary>
+
+- ✅ PriceLevel class using `std::deque<Order*>` for FIFO ordering
+- ✅ `add_order()`: O(1) append to back
+- ✅ `remove_order(OrderId)`: find and erase by ID
+- ✅ `get_total_quantity()`: aggregate quantity at price level
+- ✅ `front()`: access best time-priority order
+- ✅ `is_empty()` and `order_count()`: state queries
+- ✅ Comprehensive test suite: 11 tests passing
+- ✅ FIFO ordering verified, all edge cases covered
+- ✅ Total tests: 33 (all passing)
 </details>
 
 ---
