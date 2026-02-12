@@ -13,10 +13,30 @@ A high-performance limit order matching engine implemented in modern C++17.
   - [x] Day 2: Price Representation & Core Enums
   - [x] Day 3: Order Struct
   - [x] Day 4: PriceLevel Class
-  - [ ] Day 5-10: OrderBook & Matching Logic
+  - [ ] Day 5: OrderBook Data Structures & Add Order
+  - [ ] Day 6: OrderBook Cancel & Best Bid/Offer (BBO)
+  - [ ] Day 7: Limit Order Matching Engine
+  - [ ] Day 8: Multi-level Matching & Edge Cases
+  - [ ] Day 9: Trade Output & Event System
+  - [ ] Day 10: Phase 1 Integration & Review
 - [ ] Phase 2: Extended Order Types (Days 11-15)
+  - [ ] Day 11: Market Orders
+  - [ ] Day 12: IOC (Immediate or Cancel) Orders
+  - [ ] Day 13: FOK (Fill or Kill) Orders
+  - [ ] Day 14: Order Amendments
+  - [ ] Day 15: Phase 2 Integration & Review
 - [ ] Phase 3: Performance Optimization (Days 16-20)
-- [ ] Phase 4: Multithreading, Polish & Ship (Days 21-25)
+  - [ ] Day 16: Baseline Benchmarks
+  - [ ] Day 17: Memory Pool (ObjectPool)
+  - [ ] Day 18: Hot-Path Optimization
+  - [ ] Day 19: Realistic Benchmark Suite
+  - [ ] Day 20: Performance Polish & Documentation
+- [ ] Phase 4: Multithreading & Final Polish (Days 21-25)
+  - [ ] Day 21: SPSC Lock-Free Queue
+  - [ ] Day 22: Producer-Consumer Threading
+  - [ ] Day 23: Market Data API & FIX Parser
+  - [ ] Day 24: README, CI & Documentation
+  - [ ] Day 25: Final Review & Ship (v1.0.0)
 
 ## Features (Planned)
 
