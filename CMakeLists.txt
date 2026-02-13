@@ -50,6 +50,7 @@ enable_testing()
 # Create a library for all source files (reusable across executables)
 add_library(ome_lib
     src/price_level.cpp
+    src/order_book.cpp
 )
 target_include_directories(ome_lib PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
@@ -63,6 +64,7 @@ add_executable(ome_tests
     test/test_price.cpp
     test/test_order.cpp
     test/test_price_level.cpp
+    test/test_order_book.cpp
 )
 target_link_libraries(ome_tests ome_lib GTest::gtest_main)
 

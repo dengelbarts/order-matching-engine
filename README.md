@@ -13,7 +13,7 @@ A high-performance limit order matching engine implemented in modern C++17.
   - [x] Day 2: Price Representation & Core Enums
   - [x] Day 3: Order Struct
   - [x] Day 4: PriceLevel Class
-  - [ ] Day 5: OrderBook Data Structures & Add Order
+  - [x] Day 5: OrderBook Data Structures & Add Order
   - [ ] Day 6: OrderBook Cancel & Best Bid/Offer (BBO)
   - [ ] Day 7: Limit Order Matching Engine
   - [ ] Day 8: Multi-level Matching & Edge Cases
@@ -88,7 +88,7 @@ This project follows a 25-day structured implementation plan. Each day's work is
 | [`day-2`](../../tree/day-2) | Feb 10, 2026 | Price representation & core enums | ✅ Complete |
 | [`day-3`](../../tree/day-3) | Feb 11, 2026 | Order struct | ✅ Complete |
 | [`day-4`](../../tree/day-4) | Feb 12, 2026 | PriceLevel class | ✅ Complete |
-| `day-5` | Feb 13, 2026 | OrderBook data structures | ⏳ Planned |
+| [`day-5`](../../tree/day-5) | Feb 13, 2026 | OrderBook data structures | ✅ Complete |
 | `day-6` | Feb 14, 2026 | OrderBook cancel & BBO | ⏳ Planned |
 | `day-7` | Feb 15, 2026 | Limit order matching | ⏳ Planned |
 | `day-8` | Feb 16, 2026 | Multi-level matching | ⏳ Planned |
@@ -182,6 +182,27 @@ git checkout main
 - ✅ Comprehensive test suite: 11 tests passing
 - ✅ FIFO ordering verified, all edge cases covered
 - ✅ Total tests: 33 (all passing)
+</details>
+
+<details>
+<summary><b>Day 5:</b> OrderBook Data Structures & Add Order</summary>
+
+- ✅ OrderBook class with dual-sided order storage
+- ✅ Bid side: `std::map<Price, PriceLevel, std::greater<Price>>` (descending order)
+- ✅ Ask side: `std::map<Price, PriceLevel, std::less<Price>>` (ascending order)
+- ✅ Order lookup: `std::unordered_map<OrderId, Order*>` for O(1) access
+- ✅ `add_order()`: insert into correct side and price level
+- ✅ Automatic PriceLevel creation when price not in book
+- ✅ `get_order()` and `has_order()`: fast order retrieval by ID
+- ✅ Comprehensive test suite: 8 tests passing
+  - Add single buy/sell orders
+  - Add multiple orders at same price (FIFO verified)
+  - Add orders on both sides
+  - Bid side sorted descending (best bid first)
+  - Ask side sorted ascending (best ask first)
+  - Order retrieval by ID
+  - Non-existent order handling
+- ✅ Total tests: 41 (all passing)
 </details>
 
 ---
