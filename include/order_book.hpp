@@ -25,4 +25,24 @@ class OrderBook
         bool has_order(OrderId order_id) const;
         
         Order *get_order(OrderId order_id) const;
+
+        bool cancel_order(OrderId order_id);
+
+        struct BBO
+        {
+            Price price;
+            Quantity quantity;
+            bool valid;
+        };
+
+        BBO get_best_bid() const;
+        BBO get_best_ask() const;
+
+        struct Spread
+        {
+            Price value;
+            bool valid;
+        };
+
+        Spread get_spread() const;
 };

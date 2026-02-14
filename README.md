@@ -14,7 +14,7 @@ A high-performance limit order matching engine implemented in modern C++17.
   - [x] Day 3: Order Struct
   - [x] Day 4: PriceLevel Class
   - [x] Day 5: OrderBook Data Structures & Add Order
-  - [ ] Day 6: OrderBook Cancel & Best Bid/Offer (BBO)
+  - [x] Day 6: OrderBook Cancel & Best Bid/Offer (BBO)
   - [ ] Day 7: Limit Order Matching Engine
   - [ ] Day 8: Multi-level Matching & Edge Cases
   - [ ] Day 9: Trade Output & Event System
@@ -89,7 +89,7 @@ This project follows a 25-day structured implementation plan. Each day's work is
 | [`day-3`](../../tree/day-3) | Feb 11, 2026 | Order struct | ✅ Complete |
 | [`day-4`](../../tree/day-4) | Feb 12, 2026 | PriceLevel class | ✅ Complete |
 | [`day-5`](../../tree/day-5) | Feb 13, 2026 | OrderBook data structures | ✅ Complete |
-| `day-6` | Feb 14, 2026 | OrderBook cancel & BBO | ⏳ Planned |
+| [`day-6`](../../tree/day-6) | Feb 14, 2026 | OrderBook cancel & BBO | ✅ Complete |
 | `day-7` | Feb 15, 2026 | Limit order matching | ⏳ Planned |
 | `day-8` | Feb 16, 2026 | Multi-level matching | ⏳ Planned |
 | `day-9` | Feb 17, 2026 | Trade output & events | ⏳ Planned |
@@ -203,6 +203,28 @@ git checkout main
   - Order retrieval by ID
   - Non-existent order handling
 - ✅ Total tests: 41 (all passing)
+</details>
+
+<details>
+<summary><b>Day 6:</b> OrderBook Cancel & Best Bid/Offer (BBO)</summary>
+
+- ✅ `cancel_order(OrderId)`: remove orders from book and lookup map
+- ✅ Ghost level cleanup: automatically remove empty price levels after cancel
+- ✅ `get_best_bid()`: returns highest bid price + aggregated quantity
+- ✅ `get_best_ask()`: returns lowest ask price + aggregated quantity
+- ✅ `get_spread()`: calculates bid-ask spread with validity checking
+- ✅ BBO struct with `valid` flag for empty book handling
+- ✅ Spread struct with `valid` flag for one-sided book handling
+- ✅ Comprehensive test suite: 20 new tests passing
+  - Cancel existing/non-existent orders
+  - Cancel and verify only target order removed
+  - Ghost level cleanup verification
+  - BBO on empty/single-order/multi-level books
+  - BBO quantity aggregation at same price
+  - BBO updates after cancellations
+  - Spread calculation: empty book, one-sided, tight/wide markets
+  - Spread updates after cancel
+- ✅ Total tests: 61 (all passing)
 </details>
 
 ---

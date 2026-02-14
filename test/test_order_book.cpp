@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "order_book.hpp"
+#include "../include/order_book.hpp"
 
 class OrderBookTest : public ::testing::Test
 {
@@ -12,7 +12,7 @@ class OrderBookTest : public ::testing::Test
             auto order = std::make_unique<Order>
             (
                 generate_order_id(),
-                1, // symbol_id
+                1,
                 side,
                 price,
                 qty,
@@ -151,4 +151,292 @@ TEST_F(OrderBookTest, NonExistentOrderLookup)
 {
     EXPECT_FALSE(book.has_order(999999));
     EXPECT_EQ(book.get_order(999999), nullptr);
+}
+
+TEST_F(OrderBookTest, CancelExistingOrder)
+{
+    Order *order = create_order(Side::Buy, to_price(10.00), 100);
+    book.add_order(order);
+
+    EXPECT_TRUE(book.has_order(order->order_id));
+
+    bool cancelled = book.cancel_order(order->order_id);
+
+    EXPECT_TRUE(cancelled);
+    EXPECT_FALSE(book.has_order(order->order_id));
+    EXPECT_EQ(book.get_order(order->order_id), nullptr);
+
+    const auto &bids = book.get_bids();
+    EXPECT_EQ(bids.size(), 0);
+}
+
+TEST_F(OrderBookTest, CancelNonExistentOrder)
+{
+    bool cancelled = book.cancel_order(999999);
+    EXPECT_FALSE(cancelled);
+}
+
+TEST_F(OrderBookTest, CancelRemovesOnlyTargetOrder)
+{
+    Order *order1 = create_order(Side::Buy, to_price(10.00), 100);
+    Order *order2 = create_order(Side::Buy, to_price(10.00), 200);
+    Order *order3 = create_order(Side::Buy, to_price(10.00), 150);
+
+    book.add_order(order1);
+    book.add_order(order2);
+    book.add_order(order3);
+
+    bool cancelled = book.cancel_order(order2->order_id);
+
+    EXPECT_TRUE(cancelled);
+    EXPECT_TRUE(book.has_order(order1->order_id));
+    EXPECT_FALSE(book.has_order(order2->order_id));
+    EXPECT_TRUE(book.has_order(order3->order_id));
+
+    const auto &bids = book.get_bids();
+    EXPECT_EQ(bids.size(), 1);
+
+    auto it = bids.find(to_price(10.00));
+    ASSERT_TRUE(it != bids.end());
+    EXPECT_EQ(it->second.order_count(), 2);
+    EXPECT_EQ(it->second.get_total_quantity(), 250);
+}
+
+TEST_F(OrderBookTest, CancelLastOrderAtPriceRemovesPriceLevel)
+{
+    Order *order1 = create_order(Side::Buy, to_price(10.00), 100);
+    Order *order2 = create_order(Side::Buy, to_price(9.50), 200);
+
+    book.add_order(order1);
+    book.add_order(order2);
+
+    const auto &bids = book.get_bids();
+    EXPECT_EQ(bids.size(), 2);
+
+    book.cancel_order(order1->order_id);
+
+    EXPECT_EQ(bids.size(), 1);
+    EXPECT_TRUE(bids.find(to_price(10.00)) == bids.end());
+    EXPECT_TRUE(bids.find(to_price(9.50)) != bids.end()); 
+}
+
+TEST_F(OrderBookTest, GetBestBidOnEmptyBook)
+{
+    auto bbo = book.get_best_bid();
+
+    EXPECT_FALSE(bbo.valid);
+    EXPECT_EQ(bbo.price, 0);
+    EXPECT_EQ(bbo.quantity, 0);
+}
+
+TEST_F(OrderBookTest, GetBestAskOnEmptyBook)
+{
+    auto bbo = book.get_best_ask();
+    
+    EXPECT_FALSE(bbo.valid);
+    EXPECT_EQ(bbo.price, 0);
+    EXPECT_EQ(bbo.quantity, 0);
+}
+
+TEST_F(OrderBookTest, GetBestBidWithSingleOrder)
+{
+    Order *order = create_order(Side::Buy, to_price(10.00), 100);
+    book.add_order(order);
+
+    auto bbo = book.get_best_bid();
+
+    EXPECT_TRUE(bbo.valid);
+    EXPECT_EQ(bbo.price, to_price(10.00));
+    EXPECT_EQ(bbo.quantity, 100);
+}
+
+TEST_F(OrderBookTest, GetBestAskWithSingleOrder)
+{
+    Order *order = create_order(Side::Sell, to_price(10.50), 75);
+    book.add_order(order);
+
+    auto bbo = book.get_best_ask();
+
+    EXPECT_TRUE(bbo.valid);
+    EXPECT_EQ(bbo.price, to_price(10.50));
+    EXPECT_EQ(bbo.quantity, 75);
+}
+
+TEST_F(OrderBookTest, GetBestBidWithMultiplePriceLevels)
+{
+    Order *order1 = create_order(Side::Buy, to_price(10.00), 100);
+    Order *order2 = create_order(Side::Buy, to_price(10.50), 200);
+    Order *order3 = create_order(Side::Buy, to_price(9.75), 150);
+
+    book.add_order(order1);
+    book.add_order(order2);
+    book.add_order(order3);
+
+    auto bbo = book.get_best_bid();
+
+    EXPECT_TRUE(bbo.valid);
+    EXPECT_EQ(bbo.price, to_price(10.50));
+    EXPECT_EQ(bbo.quantity, 200);
+}
+
+TEST_F(OrderBookTest, GetBestAskWithMultiplePriceLevels)
+{
+    Order *order1 = create_order(Side::Sell, to_price(11.00), 100);
+    Order *order2 = create_order(Side::Sell, to_price(10.50), 200);
+    Order *order3 = create_order(Side::Sell, to_price(11.25), 150);
+
+    book.add_order(order1);
+    book.add_order(order2);
+    book.add_order(order3);
+
+    auto bbo = book.get_best_ask();
+
+    EXPECT_TRUE(bbo.valid);
+    EXPECT_EQ(bbo.price, to_price(10.50));
+    EXPECT_EQ(bbo.quantity, 200);
+}
+
+TEST_F(OrderBookTest, GetBestBidAggregatesQuantityAtSamePrice)
+{
+    Order *order1 = create_order(Side::Buy, to_price(10.00), 100);
+    Order *order2 = create_order(Side::Buy, to_price(10.00), 200);
+    Order *order3 = create_order(Side::Buy, to_price(10.00), 50);
+
+    book.add_order(order1);
+    book.add_order(order2);
+    book.add_order(order3);
+
+    auto bbo = book.get_best_bid();
+
+    EXPECT_TRUE(bbo.valid);
+    EXPECT_EQ(bbo.price, to_price(10.00));
+    EXPECT_EQ(bbo.quantity, 350);
+}
+
+TEST_F(OrderBookTest, CancelBestBidUpdatesBBO)
+{
+    Order *order1 = create_order(Side::Buy, to_price(10.50), 100);
+    Order *order2 = create_order(Side::Buy, to_price(10.00), 200);
+
+    book.add_order(order1);
+    book.add_order(order2);
+
+    auto bbo = book.get_best_bid();
+    EXPECT_EQ(bbo.price, to_price(10.50));
+
+    book.cancel_order(order1->order_id);
+
+    bbo = book.get_best_bid();
+    EXPECT_TRUE(bbo.valid);
+    EXPECT_EQ(bbo.price, to_price(10.00));
+    EXPECT_EQ(bbo.quantity, 200);
+}
+
+TEST_F(OrderBookTest, CancelBestAskUpdatesBBO)
+{
+    Order *order1 = create_order(Side::Sell, to_price(10.50), 100);
+    Order *order2 = create_order(Side::Sell, to_price(11.00), 200);
+
+    book.add_order(order1);
+    book.add_order(order2);
+
+    auto bbo = book.get_best_ask();
+    EXPECT_EQ(bbo.price, to_price(10.50));
+
+    book.cancel_order(order1->order_id);
+
+    bbo = book.get_best_ask();
+    EXPECT_TRUE(bbo.valid);
+    EXPECT_EQ(bbo.price, to_price(11.00));
+    EXPECT_EQ(bbo.quantity, 200);
+}
+
+TEST_F(OrderBookTest, GetSpreadOnEmptyBook)
+{
+    auto spread = book.get_spread();
+
+    EXPECT_FALSE(spread.valid);
+    EXPECT_EQ(spread.value, 0);
+}
+
+TEST_F(OrderBookTest, GetSpreadWithOnlyBids)
+{
+    Order *order = create_order(Side::Buy, to_price(10.00), 100);
+    book.add_order(order);
+
+    auto spread = book.get_spread();
+
+    EXPECT_FALSE(spread.valid);
+}
+
+TEST_F(OrderBookTest, GetSpreadWithOnlyAsks)
+{
+    Order *order = create_order(Side::Sell, to_price(10.50), 100);
+    book.add_order(order);
+
+    auto spread = book.get_spread();
+
+    EXPECT_FALSE(spread.valid);
+}
+
+TEST_F(OrderBookTest, GetSpreadWithBothSides)
+{
+    Order *bid = create_order(Side::Buy, to_price(10.00), 100);
+    Order *ask = create_order(Side::Sell, to_price(10.50), 100);
+
+    book.add_order(bid);
+    book.add_order(ask);
+
+    auto spread = book.get_spread();
+
+    EXPECT_TRUE(spread.valid);
+    EXPECT_EQ(spread.value, to_price(0.50));
+}
+
+TEST_F(OrderBookTest, GetSpreadWithTightMarket)
+{
+    Order *bid = create_order(Side::Buy, to_price(10.00), 100);
+    Order *ask = create_order(Side::Sell, to_price(10.01), 100);
+
+    book.add_order(bid);
+    book.add_order(ask);
+
+    auto spread = book.get_spread();
+
+    EXPECT_TRUE(spread.valid);
+    EXPECT_EQ(spread.value, to_price(0.01));
+}
+
+TEST_F(OrderBookTest, GetSpreadWithWideMarket)
+{
+    Order *bid = create_order(Side::Buy, to_price(10.00), 100);
+    Order *ask = create_order(Side::Sell, to_price(15.00), 100);
+
+    book.add_order(bid);
+    book.add_order(ask);
+
+    auto spread = book.get_spread();
+
+    EXPECT_TRUE(spread.valid);
+    EXPECT_EQ(spread.value, to_price(5.00));
+}
+
+TEST_F(OrderBookTest, SpreadUpdatesAfterCancel)
+{
+    Order *bid1 = create_order(Side::Buy, to_price(10.00), 100);
+    Order *bid2 = create_order(Side::Buy, to_price(9.50), 100);
+    Order *ask = create_order(Side::Sell, to_price(10.50), 100);
+
+    book.add_order(bid1);
+    book.add_order(bid2);
+    book.add_order(ask);
+
+    auto spread = book.get_spread();
+    EXPECT_EQ(spread.value, to_price(0.50));
+
+    book.cancel_order(bid1->order_id);
+
+    spread = book.get_spread();
+    EXPECT_TRUE(spread.valid);
+    EXPECT_EQ(spread.value, to_price(1.00));
 }
