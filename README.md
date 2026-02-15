@@ -15,7 +15,7 @@ A high-performance limit order matching engine implemented in modern C++17.
   - [x] Day 4: PriceLevel Class
   - [x] Day 5: OrderBook Data Structures & Add Order
   - [x] Day 6: OrderBook Cancel & Best Bid/Offer (BBO)
-  - [ ] Day 7: Limit Order Matching Engine
+  - [x] Day 7: Limit Order Matching Engine
   - [ ] Day 8: Multi-level Matching & Edge Cases
   - [ ] Day 9: Trade Output & Event System
   - [ ] Day 10: Phase 1 Integration & Review
@@ -90,7 +90,7 @@ This project follows a 25-day structured implementation plan. Each day's work is
 | [`day-4`](../../tree/day-4) | Feb 12, 2026 | PriceLevel class | ✅ Complete |
 | [`day-5`](../../tree/day-5) | Feb 13, 2026 | OrderBook data structures | ✅ Complete |
 | [`day-6`](../../tree/day-6) | Feb 14, 2026 | OrderBook cancel & BBO | ✅ Complete |
-| `day-7` | Feb 15, 2026 | Limit order matching | ⏳ Planned |
+| [`day-7`](../../tree/day-7) | Feb 15, 2026 | Limit order matching | ✅ Complete |
 | `day-8` | Feb 16, 2026 | Multi-level matching | ⏳ Planned |
 | `day-9` | Feb 17, 2026 | Trade output & events | ⏳ Planned |
 | `day-10` | Feb 18, 2026 | **Phase 1 complete** | ⏳ Planned |
@@ -225,6 +225,33 @@ git checkout main
   - Spread calculation: empty book, one-sided, tight/wide markets
   - Spread updates after cancel
 - ✅ Total tests: 61 (all passing)
+</details>
+
+<details>
+<summary><b>Day 7:</b> Limit Order Matching Engine</summary>
+
+- ✅ Trade struct with `TradeId` generator (atomic counter)
+- ✅ Core `match()` function implementing price-time priority
+- ✅ Buy order matching: walk asks from lowest price upward
+- ✅ Sell order matching: walk bids from highest price downward
+- ✅ Exact fills: orders fully matched and removed from book
+- ✅ Partial fills: orders partially matched, remainder rests in book
+- ✅ Price improvement: trades execute at resting order's price
+- ✅ Multi-level matching: orders sweep through multiple price levels
+- ✅ FIFO ordering: earliest orders at each price level match first
+- ✅ Automatic cleanup: fully filled orders removed from lookup map
+- ✅ Comprehensive test suite: 9 new tests passing
+  - ExactMatch: buy/sell at same price fully fills both orders
+  - PartialFillBuyRemains: buy fills partially, 50 shares remain in book
+  - PartialFillSellRemains: sell fills partially, remainder rests
+  - PriceImprovement: buy@10.50 matches sell@10.00, trades at $10.00
+  - NoMatch: non-crossing orders (buy@9.00 vs sell@10.00) both rest
+  - SellMatchesAgainstBid: sell order matching logic verified
+  - FIFOOrdering: first order at price level matches first
+  - MultiLevelMatching: buy sweeps 2 ask levels ($9.50, $10.00)
+  - MultiLevelMatchingSell: sell sweeps 3 bid levels ($10.50, $10.00, $9.50)
+- ✅ **Total tests: 70 (all passing)**
+- ✅ **Core matching engine now functional!** 🎯
 </details>
 
 ---
