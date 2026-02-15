@@ -1,10 +1,12 @@
 #pragma once
 
 #include <map>
+#include <vector>
 #include <unordered_map>
 #include <memory>
 #include "order.hpp"
 #include "price_level.hpp"
+#include "trade.hpp"
 
 class OrderBook
 {
@@ -45,4 +47,6 @@ class OrderBook
         };
 
         Spread get_spread() const;
+
+        std::vector<Trade> match(Order *order);
 };
