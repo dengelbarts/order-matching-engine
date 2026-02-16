@@ -11,11 +11,12 @@ class MatchingTest : public ::testing::Test
         std::vector<std::unique_ptr<Order>> orders;
         SymbolId symbol = 1;
 
-        Order *create_order(Side side, Price price, Quantity qty, OrderType type = OrderType::Limit)
+        Order *create_order(Side side, Price price, Quantity qty, TraderId trader = 100, OrderType type = OrderType::Limit)
         {
             auto order = std::make_unique<Order>(
                 generate_order_id(),
                 symbol,
+                trader,
                 side,
                 price,
                 qty,
@@ -30,10 +31,10 @@ class MatchingTest : public ::testing::Test
 
 TEST_F(MatchingTest, ExactMatch)
 {
-    Order *sell = create_order(Side::Sell, to_price(10.00), 100);
+    Order *sell = create_order(Side::Sell, to_price(10.00), 100, 200);
     book.add_order(sell);
 
-    Order *buy = create_order(Side::Buy, to_price(10.00), 100);
+    Order *buy = create_order(Side::Buy, to_price(10.00), 100, 100);
     std::vector<Trade> trades = book.match(buy);
 
     ASSERT_EQ(trades.size(), 1);
@@ -53,10 +54,10 @@ TEST_F(MatchingTest, ExactMatch)
 
 TEST_F(MatchingTest, PartialFillBuyRemains)
 {
-    Order *sell = create_order(Side::Sell, to_price(10.00), 50);
+    Order *sell = create_order(Side::Sell, to_price(10.00), 50, 200);
     book.add_order(sell);
 
-    Order *buy = create_order(Side::Buy, to_price(10.00), 100);
+    Order *buy = create_order(Side::Buy, to_price(10.00), 100, 100);
     std::vector<Trade> trades = book.match(buy);
 
     ASSERT_EQ(trades.size(), 1);
@@ -77,10 +78,10 @@ TEST_F(MatchingTest, PartialFillBuyRemains)
 
 TEST_F(MatchingTest, PriceImprovement)
 {
-    Order *sell = create_order(Side::Sell, to_price(10.00), 100);
+    Order *sell = create_order(Side::Sell, to_price(10.00), 100, 200);
     book.add_order(sell);
 
-    Order *buy = create_order(Side::Buy, to_price(10.50), 100);
+    Order *buy = create_order(Side::Buy, to_price(10.50), 100, 100);
     std::vector<Trade> trades = book.match(buy);
 
     ASSERT_EQ(trades.size(), 1);
@@ -93,10 +94,10 @@ TEST_F(MatchingTest, PriceImprovement)
 
 TEST_F(MatchingTest, NoMatch)
 {
-    Order *sell = create_order(Side::Sell, to_price(10.00), 100);
+    Order *sell = create_order(Side::Sell, to_price(10.00), 100, 200);
     book.add_order(sell);
 
-    Order *buy = create_order(Side::Buy, to_price(9.00), 100);
+    Order *buy = create_order(Side::Buy, to_price(9.00), 100, 100);
     std::vector<Trade> trades = book.match(buy);
 
     EXPECT_EQ(trades.size(), 0);
@@ -114,10 +115,10 @@ TEST_F(MatchingTest, NoMatch)
 
 TEST_F(MatchingTest, SellMatchesAgainstBid)
 {
-    Order *buy = create_order(Side::Buy, to_price(10.00), 100);
+    Order *buy = create_order(Side::Buy, to_price(10.00), 100, 100);
     book.add_order(buy);
 
-    Order *sell = create_order(Side::Sell, to_price(10.00), 100);
+    Order *sell = create_order(Side::Sell, to_price(10.00), 100, 200);
     std::vector<Trade> trades = book.match(sell);
 
     ASSERT_EQ(trades.size(), 1);
@@ -130,10 +131,10 @@ TEST_F(MatchingTest, SellMatchesAgainstBid)
 
 TEST_F(MatchingTest, PartialFillSellRemains)
 {
-    Order *buy = create_order(Side::Buy, to_price(10.00), 50);
+    Order *buy = create_order(Side::Buy, to_price(10.00), 50, 100);
     book.add_order(buy);
 
-    Order *sell = create_order(Side::Sell, to_price(10.00), 100);
+    Order *sell = create_order(Side::Sell, to_price(10.00), 100, 200);
     std::vector<Trade> trades = book.match(sell);
 
     ASSERT_EQ(trades.size(), 1);
@@ -148,12 +149,12 @@ TEST_F(MatchingTest, PartialFillSellRemains)
 
 TEST_F(MatchingTest, FIFOOrdering)
 {
-    Order *sell1 = create_order(Side::Sell, to_price(10.00), 50);
-    Order *sell2 = create_order(Side::Sell, to_price(10.00), 50);
+    Order *sell1 = create_order(Side::Sell, to_price(10.00), 50, 200);
+    Order *sell2 = create_order(Side::Sell, to_price(10.00), 50, 300);
     book.add_order(sell1);
     book.add_order(sell2);
 
-    Order *buy = create_order(Side::Buy, to_price(10.00), 50);
+    Order *buy = create_order(Side::Buy, to_price(10.00), 50, 100);
     std::vector<Trade> trades = book.match(buy);
 
     ASSERT_EQ(trades.size(), 1);
@@ -165,14 +166,14 @@ TEST_F(MatchingTest, FIFOOrdering)
 
 TEST_F(MatchingTest, MultiLevelMatching)
 {
-    Order *sell1 = create_order(Side::Sell, to_price(9.50), 50);
-    Order *sell2 = create_order(Side::Sell, to_price(10.00), 50);
-    Order *sell3 = create_order(Side::Sell, to_price(10.50), 50);
+    Order *sell1 = create_order(Side::Sell, to_price(9.50), 50, 200);
+    Order *sell2 = create_order(Side::Sell, to_price(10.00), 50, 300);
+    Order *sell3 = create_order(Side::Sell, to_price(10.50), 50, 400);
     book.add_order(sell1);
     book.add_order(sell2);
     book.add_order(sell3);
 
-    Order *buy = create_order(Side::Buy, to_price(10.00), 100);
+    Order *buy = create_order(Side::Buy, to_price(10.00), 100, 100);
     std::vector<Trade> trades = book.match(buy);
 
     ASSERT_EQ(trades.size(), 2);
@@ -200,14 +201,14 @@ TEST_F(MatchingTest, MultiLevelMatching)
 
 TEST_F(MatchingTest, MultiLevelMatchingSell)
 {
-    Order *buy1 = create_order(Side::Buy, to_price(10.50), 30);
-    Order *buy2 = create_order(Side::Buy, to_price(10.00), 40);
-    Order *buy3 = create_order(Side::Buy, to_price(9.50), 30);
+    Order *buy1 = create_order(Side::Buy, to_price(10.50), 30, 100);
+    Order *buy2 = create_order(Side::Buy, to_price(10.00), 40, 200);
+    Order *buy3 = create_order(Side::Buy, to_price(9.50), 30, 300);
     book.add_order(buy1);
     book.add_order(buy2);
     book.add_order(buy3);
 
-    Order *sell = create_order(Side::Sell, to_price(9.50), 100);
+    Order *sell = create_order(Side::Sell, to_price(9.50), 100, 400);
     std::vector<Trade> trades = book.match(sell);
 
     ASSERT_EQ(trades.size(), 3);
@@ -225,6 +226,161 @@ TEST_F(MatchingTest, MultiLevelMatchingSell)
     EXPECT_FALSE(book.has_order(buy2->order_id));
     EXPECT_FALSE(book.has_order(buy3->order_id));
     EXPECT_FALSE(book.has_order(sell->order_id));
+
+    EXPECT_FALSE(book.get_best_bid().valid);
+    EXPECT_FALSE(book.get_best_ask().valid);
+}
+
+TEST_F(MatchingTest, SelfMatchPreventionBuy)
+{
+    Order *sell1 = create_order(Side::Sell, to_price(10.00), 50, 100);
+    Order *sell2 = create_order(Side::Sell, to_price(10.00), 50, 200);
+    book.add_order(sell1);
+    book.add_order(sell2);
+
+    Order *buy = create_order(Side::Buy, to_price(10.00), 100, 100);
+    auto trades = book.match(buy);
+
+    EXPECT_EQ(trades.size(), 0);
+
+    EXPECT_TRUE(book.has_order(buy->order_id));
+    EXPECT_EQ(book.get_order(buy->order_id)->quantity, 100);
+
+    EXPECT_TRUE(book.has_order(sell1->order_id));
+    EXPECT_TRUE(book.has_order(sell2->order_id));
+    EXPECT_EQ(sell1->quantity, 50);
+    EXPECT_EQ(sell2->quantity, 50);
+}
+
+TEST_F(MatchingTest, SelfMatchPreventionSell)
+{
+    Order *buy1 = create_order(Side::Buy, to_price(10.00), 50, 100);
+    Order *buy2 = create_order(Side::Buy, to_price(10.00), 50, 200);
+    book.add_order(buy1);
+    book.add_order(buy2);
+
+    Order *sell = create_order(Side::Sell, to_price(10.00), 100, 100);
+    auto trades = book.match(sell);
+
+    EXPECT_EQ(trades.size(), 0);
+
+    EXPECT_TRUE(book.has_order(sell->order_id));
+    EXPECT_EQ(book.get_order(sell->order_id)->quantity, 100);
+
+    EXPECT_TRUE(book.has_order(buy1->order_id));
+    EXPECT_TRUE(book.has_order(buy2->order_id));
+    EXPECT_EQ(buy1->quantity, 50);
+    EXPECT_EQ(buy2->quantity, 50);
+}
+
+TEST_F(MatchingTest, DifferentTradersMatch)
+{
+    Order *sell = create_order(Side::Sell, to_price(10.00), 50, 100);
+    book.add_order(sell);
+
+    Order *buy = create_order(Side::Buy, to_price(10.00), 50, 200);
+    auto trades = book.match(buy);
+
+    EXPECT_EQ(trades.size(), 1);
+    EXPECT_EQ(trades[0].quantity, 50);
+    EXPECT_EQ(trades[0].price, to_price(10.00));
+
+    EXPECT_FALSE(book.has_order(sell->order_id));
+    EXPECT_FALSE(book.has_order(buy->order_id));
+}
+
+TEST_F(MatchingTest, SelfMatchPreventionMultiLevel)
+{
+    Order *sell1 = create_order(Side::Sell, to_price(9.00), 50, 100);
+    Order *sell2 = create_order(Side::Sell, to_price(10.00), 50, 100);
+    Order *sell3 = create_order(Side::Sell, to_price(11.00), 50, 100);
+    book.add_order(sell1);
+    book.add_order(sell2);
+    book.add_order(sell3);
+
+    Order *buy = create_order(Side::Buy, to_price(12.00), 150, 100);
+    auto trades = book.match(buy);
+
+    EXPECT_EQ(trades.size(), 0);
+
+    EXPECT_TRUE(book.has_order(buy->order_id));
+    EXPECT_EQ(book.get_order(buy->order_id)->quantity, 150);
+
+    EXPECT_TRUE(book.has_order(sell1->order_id));
+    EXPECT_TRUE(book.has_order(sell2->order_id));
+    EXPECT_TRUE(book.has_order(sell3->order_id));
+}
+
+TEST_F(MatchingTest, EmptyBookMatching)
+{
+    Order *buy = create_order(Side::Buy, to_price(10.00), 100, 100);
+    auto trades = book.match(buy);
+
+    EXPECT_EQ(trades.size(), 0);
+
+    EXPECT_TRUE(book.has_order(buy->order_id));
+    EXPECT_EQ(buy->quantity, 100);
+}
+
+TEST_F(MatchingTest, SingleSidedBookBidsOnly)
+{
+    Order *buy1 = create_order(Side::Buy, to_price(9.00), 50, 100);
+    Order *buy2 = create_order(Side::Buy, to_price(10.00), 50, 100);
+    book.add_order(buy1);
+    book.add_order(buy2);
+
+    Order *buy3 = create_order(Side::Buy, to_price(11.00), 100, 200);
+    auto trades = book.match(buy3);
+
+    EXPECT_EQ(trades.size(), 0);
+
+    EXPECT_TRUE(book.has_order(buy1->order_id));
+    EXPECT_TRUE(book.has_order(buy2->order_id));
+    EXPECT_TRUE(book.has_order(buy3->order_id));
+}
+
+TEST_F(MatchingTest, SingleSidedBookAsksOnly)
+{
+    Order *sell1 = create_order(Side::Sell, to_price(10.00), 50, 100);
+    Order *sell2 = create_order(Side::Sell, to_price(11.00), 50, 100);
+    book.add_order(sell1);
+    book.add_order(sell2);
+
+    Order *sell3 = create_order(Side::Sell, to_price(9.00), 100, 200);
+    auto trades = book.match(sell3);
+
+    EXPECT_EQ(trades.size(), 0);
+
+    EXPECT_TRUE(book.has_order(sell1->order_id));
+    EXPECT_TRUE(book.has_order(sell2->order_id));
+    EXPECT_TRUE(book.has_order(sell3->order_id));
+}
+
+TEST_F(MatchingTest, SweepMultipleLevels)
+{
+    Order *sell1 = create_order(Side::Sell, to_price(9.00), 100, 100);
+    Order *sell2 = create_order(Side::Sell, to_price(10.00), 100, 200);
+    Order *sell3 = create_order(Side::Sell, to_price(11.00), 100, 300);
+    book.add_order(sell1);
+    book.add_order(sell2);
+    book.add_order(sell3);
+
+    Order *buy = create_order(Side::Buy, to_price(11.00), 300, 400);
+    auto trades = book.match(buy);
+
+    EXPECT_EQ(trades.size(), 3);
+    EXPECT_EQ(trades[0].quantity, 100);
+    EXPECT_EQ(trades[0].price, to_price(9.00));
+    EXPECT_EQ(trades[1].quantity, 100);
+    EXPECT_EQ(trades[1].price, to_price(10.00));
+    EXPECT_EQ(trades[2].quantity, 100);
+    EXPECT_EQ(trades[2].price, to_price(11.00));
+
+    EXPECT_FALSE(book.has_order(sell1->order_id));
+    EXPECT_FALSE(book.has_order(sell2->order_id));
+    EXPECT_FALSE(book.has_order(sell3->order_id));
+
+    EXPECT_FALSE(book.has_order(buy->order_id));
 
     EXPECT_FALSE(book.get_best_bid().valid);
     EXPECT_FALSE(book.get_best_ask().valid);

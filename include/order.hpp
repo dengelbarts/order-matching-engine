@@ -9,6 +9,7 @@
 
 using OrderId = uint64_t;
 using SymbolId = uint32_t;
+using TraderId = uint32_t;
 using Quantity = uint64_t;
 using Timestamp = uint64_t;
 
@@ -20,16 +21,18 @@ struct Order
     Timestamp timestamp;
 
     SymbolId symbol_id;
+    TraderId trader_id;
 
     Side side;
     OrderType order_type;
 
-    Order(OrderId id, SymbolId sym, Side s, Price p, Quantity q, Timestamp ts, OrderType type)
+    Order(OrderId id, SymbolId sym, TraderId trader, Side s, Price p, Quantity q, Timestamp ts, OrderType type)
         : order_id(id)
         , price(p)
         , quantity(q)
         , timestamp(ts)
         , symbol_id(sym)
+        , trader_id(trader)
         , side(s)
         , order_type(type)
     {}
@@ -40,6 +43,7 @@ struct Order
         , quantity(0)
         , timestamp(0)
         , symbol_id(0)
+        , trader_id(0)
         , side(Side::Buy)
         , order_type(OrderType::Limit)
     {}
@@ -67,6 +71,7 @@ inline std::ostream& operator<<(std::ostream &os, const Order &order)
     os  << "Order{"
         << "id=" << order.order_id
         << ", symbol=" << order.symbol_id
+        << ", trader=" << order.trader_id
         << ", side=" << to_string(order.side)
         << ", price=" << price_to_string(order.price)
         << ", qty=" << order.quantity

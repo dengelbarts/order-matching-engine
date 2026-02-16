@@ -8,16 +8,18 @@ TEST(OrderTest, BasicConstruction)
 {
     OrderId id = generate_order_id();
     SymbolId symbol = 1;
+    TraderId trader = 100;
     Side side = Side::Buy;
     Price price = to_price(10.50);
     Quantity qty = 100;
     Timestamp ts = get_timestamp_ns();
     OrderType type = OrderType::Limit;
 
-    Order order(id, symbol, side, price, qty, ts, type);
-    
+    Order order(id, symbol, trader, side, price, qty, ts, type);
+
     EXPECT_EQ(order.order_id, id);
     EXPECT_EQ(order.symbol_id, symbol);
+    EXPECT_EQ(order.trader_id, trader);
     EXPECT_EQ(order.side, Side::Buy);
     EXPECT_EQ(order.price, price);
     EXPECT_EQ(order.quantity, qty);
@@ -105,6 +107,7 @@ TEST(OrderTest, OutputOperator)
     Order order(
         generate_order_id(),
         1,
+        100,
         Side::Buy,
         to_price(10.50),
         100,

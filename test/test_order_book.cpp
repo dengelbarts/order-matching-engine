@@ -7,12 +7,13 @@ class OrderBookTest : public ::testing::Test
         OrderBook book;
         std::vector<std::unique_ptr<Order>> orders;
 
-        Order *create_order(Side side, Price price, Quantity qty)
+        Order *create_order(Side side, Price price, Quantity qty, TraderId trader = 100)
         {
             auto order = std::make_unique<Order>
             (
                 generate_order_id(),
                 1,
+                trader,
                 side,
                 price,
                 qty,
@@ -88,7 +89,7 @@ TEST_F(OrderBookTest, AddOrdersOnBothSides)
 
     EXPECT_EQ(bids.size(), 2);
     EXPECT_EQ(asks.size(), 2);
-    
+
     EXPECT_TRUE(book.has_order(buy1->order_id));
     EXPECT_TRUE(book.has_order(buy2->order_id));
     EXPECT_TRUE(book.has_order(sell1->order_id));
@@ -217,7 +218,7 @@ TEST_F(OrderBookTest, CancelLastOrderAtPriceRemovesPriceLevel)
 
     EXPECT_EQ(bids.size(), 1);
     EXPECT_TRUE(bids.find(to_price(10.00)) == bids.end());
-    EXPECT_TRUE(bids.find(to_price(9.50)) != bids.end()); 
+    EXPECT_TRUE(bids.find(to_price(9.50)) != bids.end());
 }
 
 TEST_F(OrderBookTest, GetBestBidOnEmptyBook)
@@ -232,7 +233,7 @@ TEST_F(OrderBookTest, GetBestBidOnEmptyBook)
 TEST_F(OrderBookTest, GetBestAskOnEmptyBook)
 {
     auto bbo = book.get_best_ask();
-    
+
     EXPECT_FALSE(bbo.valid);
     EXPECT_EQ(bbo.price, 0);
     EXPECT_EQ(bbo.quantity, 0);

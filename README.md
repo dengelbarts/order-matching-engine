@@ -16,7 +16,7 @@ A high-performance limit order matching engine implemented in modern C++17.
   - [x] Day 5: OrderBook Data Structures & Add Order
   - [x] Day 6: OrderBook Cancel & Best Bid/Offer (BBO)
   - [x] Day 7: Limit Order Matching Engine
-  - [ ] Day 8: Multi-level Matching & Edge Cases
+  - [x] Day 8: Multi-level Matching & Edge Cases
   - [ ] Day 9: Trade Output & Event System
   - [ ] Day 10: Phase 1 Integration & Review
 - [ ] Phase 2: Extended Order Types (Days 11-15)
@@ -91,7 +91,7 @@ This project follows a 25-day structured implementation plan. Each day's work is
 | [`day-5`](../../tree/day-5) | Feb 13, 2026 | OrderBook data structures | ✅ Complete |
 | [`day-6`](../../tree/day-6) | Feb 14, 2026 | OrderBook cancel & BBO | ✅ Complete |
 | [`day-7`](../../tree/day-7) | Feb 15, 2026 | Limit order matching | ✅ Complete |
-| `day-8` | Feb 16, 2026 | Multi-level matching | ⏳ Planned |
+| [`day-8`](../../tree/day-8) | Feb 16, 2026 | Multi-level matching & edge cases | ✅ Complete |
 | `day-9` | Feb 17, 2026 | Trade output & events | ⏳ Planned |
 | `day-10` | Feb 18, 2026 | **Phase 1 complete** | ⏳ Planned |
 | | | |
@@ -252,6 +252,27 @@ git checkout main
   - MultiLevelMatchingSell: sell sweeps 3 bid levels ($10.50, $10.00, $9.50)
 - ✅ **Total tests: 70 (all passing)**
 - ✅ **Core matching engine now functional!** 🎯
+</details>
+
+<details>
+<summary><b>Day 8:</b> Multi-level Matching & Edge Cases</summary>
+
+- ✅ Added `TraderId` field to Order struct (separate from `symbol_id`)
+- ✅ Self-match prevention: orders with same `trader_id` won't match
+- ✅ Industry-standard implementation (follows CME, Nasdaq, ICE practices)
+- ✅ Multi-level sweeping: verified orders sweep through multiple price levels
+- ✅ Edge case handling: empty book, single-sided book behaviors
+- ✅ Comprehensive test suite: 8 new tests passing
+  - SelfMatchPreventionBuy: buy order doesn't match own sells
+  - SelfMatchPreventionSell: sell order doesn't match own buys
+  - DifferentTradersMatch: different traders can match (normal behavior)
+  - SelfMatchPreventionMultiLevel: self-match prevention across price levels
+  - EmptyBookMatching: no crashes on empty book
+  - SingleSidedBookBidsOnly: handles all-bid books safely
+  - SingleSidedBookAsksOnly: handles all-ask books safely
+  - SweepMultipleLevels: order sweeps 3 levels (300 qty total)
+- ✅ **Total tests: 78 (all passing)**
+- ✅ **Self-match prevention complete!** 🛡️
 </details>
 
 ---

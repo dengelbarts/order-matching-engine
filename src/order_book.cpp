@@ -145,6 +145,11 @@ std::vector<Trade> OrderBook::match(Order *order)
             {
                 Order *resting_order = level.front();
 
+                if (resting_order->trader_id == order->trader_id)
+                {
+                    break;
+                }
+
                 Quantity trade_qty = std::min(remaining_qty, resting_order->quantity);
 
                 Trade trade(
@@ -194,6 +199,11 @@ std::vector<Trade> OrderBook::match(Order *order)
             while (!level.is_empty() && remaining_qty > 0)
             {
                 Order *resting_order = level.front();
+
+                if (resting_order->trader_id == order->trader_id)
+                {
+                    break;
+                }
 
                 Quantity trade_qty = std::min(remaining_qty, resting_order->quantity);
 

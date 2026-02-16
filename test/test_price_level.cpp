@@ -13,7 +13,7 @@ TEST(PriceLevelTest, EmptyLevel)
 TEST(PriceLevelTest, AddSingleOrder)
 {
     PriceLevel level;
-    Order order(1, 100, Side::Buy, to_price(10.00), 50, 1000, OrderType::Limit);
+    Order order(1, 100, 100, Side::Buy, to_price(10.00), 50, 1000, OrderType::Limit);
 
     level.add_order(&order);
 
@@ -26,9 +26,9 @@ TEST(PriceLevelTest, AddSingleOrder)
 TEST(PriceLevelTest, FIFOOrdering)
 {
     PriceLevel level;
-    Order order1(1, 100, Side::Buy, to_price(10.00), 50, 1000, OrderType::Limit);
-    Order order2(2, 100, Side::Buy, to_price(10.00), 60, 2000, OrderType::Limit);
-    Order order3(3, 100, Side::Buy, to_price(10.00), 70, 3000, OrderType::Limit);
+    Order order1(1, 100, 100, Side::Buy, to_price(10.00), 50, 1000, OrderType::Limit);
+    Order order2(2, 100, 100, Side::Buy, to_price(10.00), 60, 2000, OrderType::Limit);
+    Order order3(3, 100, 100, Side::Buy, to_price(10.00), 70, 3000, OrderType::Limit);
 
     level.add_order(&order1);
     level.add_order(&order2);
@@ -42,9 +42,9 @@ TEST(PriceLevelTest, TotalQuantity)
 {
     PriceLevel level;
 
-    Order order1(1, 100, Side::Buy, to_price(10.00), 50, 1000, OrderType::Limit);
-    Order order2(2, 100, Side::Buy, to_price(10.00), 60, 2000, OrderType::Limit);
-    Order order3(3, 100, Side::Buy, to_price(10.00), 70, 3000, OrderType::Limit);
+    Order order1(1, 100, 100, Side::Buy, to_price(10.00), 50, 1000, OrderType::Limit);
+    Order order2(2, 100, 100, Side::Buy, to_price(10.00), 60, 2000, OrderType::Limit);
+    Order order3(3, 100, 100, Side::Buy, to_price(10.00), 70, 3000, OrderType::Limit);
 
     level.add_order(&order1);
     level.add_order(&order2);
@@ -57,9 +57,9 @@ TEST(PriceLevelTest, RemoveMiddleOrder)
 {
     PriceLevel level;
 
-    Order order1(1, 100, Side::Buy, to_price(10.00), 50, 1000, OrderType::Limit);
-    Order order2(2, 100, Side::Buy, to_price(10.00), 60, 2000, OrderType::Limit);
-    Order order3(3, 100, Side::Buy, to_price(10.00), 70, 3000, OrderType::Limit);
+    Order order1(1, 100, 100, Side::Buy, to_price(10.00), 50, 1000, OrderType::Limit);
+    Order order2(2, 100, 100, Side::Buy, to_price(10.00), 60, 2000, OrderType::Limit);
+    Order order3(3, 100, 100, Side::Buy, to_price(10.00), 70, 3000, OrderType::Limit);
 
     level.add_order(&order1);
     level.add_order(&order2);
@@ -77,8 +77,8 @@ TEST(PriceLevelTest, RemoveFirstOrder)
 {
     PriceLevel level;
 
-    Order order1(1, 100, Side::Buy, to_price(10.00), 50, 1000, OrderType::Limit);
-    Order order2(2, 100, Side::Buy, to_price(10.00), 60, 2000, OrderType::Limit);
+    Order order1(1, 100, 100, Side::Buy, to_price(10.00), 50, 1000, OrderType::Limit);
+    Order order2(2, 100, 100, Side::Buy, to_price(10.00), 60, 2000, OrderType::Limit);
 
     level.add_order(&order1);
     level.add_order(&order2);
@@ -93,8 +93,8 @@ TEST(PriceLevelTest, RemoveFirstOrder)
 TEST(PriceLevelTest, RemoveNonExistentOrder)
 {
     PriceLevel level;
-    
-    Order order1(1, 100, Side::Buy, to_price(10.00), 50, 1000, OrderType::Limit);
+
+    Order order1(1, 100, 100, Side::Buy, to_price(10.00), 50, 1000, OrderType::Limit);
 
     level.add_order(&order1);
 
@@ -118,8 +118,8 @@ TEST(PriceLevelTest, RemoveAllOrders)
 {
     PriceLevel level;
 
-    Order order1(1, 100, Side::Buy, to_price(10.00), 50, 1000, OrderType::Limit);
-    Order order2(2, 100, Side::Buy, to_price(10.00), 60, 2000, OrderType::Limit);
+    Order order1(1, 100, 100, Side::Buy, to_price(10.00), 50, 1000, OrderType::Limit);
+    Order order2(2, 100, 100, Side::Buy, to_price(10.00), 60, 2000, OrderType::Limit);
 
     level.add_order(&order1);
     level.add_order(&order2);
@@ -137,9 +137,9 @@ TEST(PriceLevelTest, AddAfterRemoveMaintainsFIFO)
 {
     PriceLevel level;
 
-    Order order1(1, 100, Side::Buy, to_price(10.00), 50, 1000, OrderType::Limit);
-    Order order2(2, 100, Side::Buy, to_price(10.00), 60, 2000, OrderType::Limit);
-    Order order3(3, 100, Side::Buy, to_price(10.00), 70, 3000, OrderType::Limit);
+    Order order1(1, 100, 100, Side::Buy, to_price(10.00), 50, 1000, OrderType::Limit);
+    Order order2(2, 100, 100, Side::Buy, to_price(10.00), 60, 2000, OrderType::Limit);
+    Order order3(3, 100, 100, Side::Buy, to_price(10.00), 70, 3000, OrderType::Limit);
 
     level.add_order(&order1);
     level.add_order(&order2);
@@ -154,9 +154,9 @@ TEST(PriceLevelTest, LargeQuantitySum)
 {
     PriceLevel level;
 
-    Order order1(1, 100, Side::Buy, to_price(10.00), 1000000, 1000, OrderType::Limit);
-    Order order2(2, 100, Side::Buy, to_price(10.00), 2000000, 2000, OrderType::Limit);
-    Order order3(3, 100, Side::Buy, to_price(10.00), 3000000, 3000, OrderType::Limit);
+    Order order1(1, 100, 100, Side::Buy, to_price(10.00), 1000000, 1000, OrderType::Limit);
+    Order order2(2, 100, 100, Side::Buy, to_price(10.00), 2000000, 2000, OrderType::Limit);
+    Order order3(3, 100, 100, Side::Buy, to_price(10.00), 3000000, 3000, OrderType::Limit);
 
     level.add_order(&order1);
     level.add_order(&order2);
@@ -164,4 +164,3 @@ TEST(PriceLevelTest, LargeQuantitySum)
 
     EXPECT_EQ(level.get_total_quantity(), 6000000);
 }
-
