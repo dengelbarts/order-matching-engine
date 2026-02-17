@@ -17,7 +17,7 @@ A high-performance limit order matching engine implemented in modern C++17.
   - [x] Day 6: OrderBook Cancel & Best Bid/Offer (BBO)
   - [x] Day 7: Limit Order Matching Engine
   - [x] Day 8: Multi-level Matching & Edge Cases
-  - [ ] Day 9: Trade Output & Event System
+  - [x] Day 9: Trade Output & Event System
   - [ ] Day 10: Phase 1 Integration & Review
 - [ ] Phase 2: Extended Order Types (Days 11-15)
   - [ ] Day 11: Market Orders
@@ -92,7 +92,7 @@ This project follows a 25-day structured implementation plan. Each day's work is
 | [`day-6`](../../tree/day-6) | Feb 14, 2026 | OrderBook cancel & BBO | ✅ Complete |
 | [`day-7`](../../tree/day-7) | Feb 15, 2026 | Limit order matching | ✅ Complete |
 | [`day-8`](../../tree/day-8) | Feb 16, 2026 | Multi-level matching & edge cases | ✅ Complete |
-| `day-9` | Feb 17, 2026 | Trade output & events | ⏳ Planned |
+| [`day-9`](../../tree/day-9) | Feb 17, 2026 | Trade output & event system | ✅ Complete |
 | `day-10` | Feb 18, 2026 | **Phase 1 complete** | ⏳ Planned |
 | | | |
 | **Milestone** | | [`v0.1.0-core`](../../tree/v0.1.0-core) | Phase 1: Core matching engine |
@@ -273,6 +273,33 @@ git checkout main
   - SweepMultipleLevels: order sweeps 3 levels (300 qty total)
 - ✅ **Total tests: 78 (all passing)**
 - ✅ **Self-match prevention complete!** 🛡️
+</details>
+
+<details>
+<summary><b>Day 9:</b> Trade Output & Event System</summary>
+
+- ✅ `OrderEventType` enum: `New`, `Cancelled`, `Filled`, `PartialFill`
+- ✅ `OrderEvent` struct: captures order lifecycle events with full context (original_qty, filled_qty, remaining_qty)
+- ✅ `TradeEvent` struct: mirrors Trade for callback-based consumption
+- ✅ Human-readable `operator<<` for both event types
+- ✅ Callback mechanism: `set_trade_callback()` and `set_order_callback()` via `std::function`
+- ✅ `add_order()` fires `OrderEventType::New` on every resting order
+- ✅ `cancel_order()` fires `OrderEventType::Cancelled`
+- ✅ `match()` fires `TradeEvent` + `Filled`/`PartialFill` per resting order consumed, then `Filled`/`PartialFill` for the incoming order
+- ✅ Event ordering guaranteed: resting order event fires before incoming order event
+- ✅ `Stats` tracker: `total_orders`, `total_trades`, `total_volume`
+- ✅ Integration test: 22-order scenario verifying all event counts and statistics
+- ✅ Comprehensive test suite: 8 new tests passing
+  - AddOrderFiresNewEvent: New event with correct fields
+  - CancelOrderFiresCancelledEvent: Cancelled event on cancel
+  - ExactMatchFiresTradeAndFillEvents: 2 Filled events + 1 TradeEvent
+  - PartialFillIncomingOrderEvents: Filled + PartialFill + New for remainder
+  - NoMatchOnlyNewEvent: no trade events when prices don't cross
+  - StatsTracking: counters accurate after mixed order sequence
+  - EventOrderAddMatchTrade: resting order event precedes incoming order event
+  - IntegrationTest22Orders: 22 orders, 15 trades, 1500 volume, all counts verified
+- ✅ **Total tests: 86 (all passing)**
+- ✅ **Event system complete — order book is fully observable!** 📡
 </details>
 
 ---
