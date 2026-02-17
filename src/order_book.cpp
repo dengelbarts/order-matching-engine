@@ -1,10 +1,21 @@
 #include "order_book.hpp"
 
+void OrderBook::set_trade_callback(std::function<void(const TradeEvent &)> cb)
+{
+    on_trade_ = std::move(cb);
+}
+
+void OrderBook::set_order_callback(std::function<void(const OrderEvent &)> cb)
+{
+    on_order_event_ = std::move(cb);
+}
+
 void OrderBook::add_order(Order *order)
 {
     if (!order)
         return;
     
+    stats_.total_orders++;
     order_lookup_[order->order_id] = order;
 
     if (order->side == Side::Buy)
@@ -14,6 +25,20 @@ void OrderBook::add_order(Order *order)
     else
     {
         asks_[order->price].add_order(order);
+    }
+    if (on_order_event_)
+    {
+        on_order_event_(OrderEvent{
+            OrderEventType::New,
+            order->order_id,
+            order->symbol_id,
+            order->side,
+            order->price,
+            order->quantity,
+            0,
+            order->quantity,
+            get_timestamp_ns()
+        });
     }
 }
 
@@ -44,11 +69,8 @@ bool OrderBook::cancel_order(OrderId order_id)
         if (bid_it != bids_.end())
         {
             bid_it->second.remove_order(order_id);
-
             if (bid_it->second.is_empty())
-            {
                 bids_.erase(bid_it);
-            }
         }
     }
     else
@@ -59,11 +81,25 @@ bool OrderBook::cancel_order(OrderId order_id)
             ask_it->second.remove_order(order_id);
 
             if (ask_it->second.is_empty())
-            {
                 asks_.erase(ask_it);
-            }
         }
     }
+
+    if (on_order_event_)
+    {
+        on_order_event_(OrderEvent{
+            OrderEventType::Cancelled,
+            order->order_id,
+            order->symbol_id,
+            order->side,
+            order->price,
+            order->quantity,
+            0,
+            0,
+            get_timestamp_ns()
+        });
+    }
+
     order_lookup_.erase(lookup_it);
 
     return true;
@@ -119,11 +155,10 @@ std::vector<Trade> OrderBook::match(Order *order)
     std::vector<Trade> trades;
 
     if (order->order_type != OrderType::Limit)
-    {
         return trades;
-    }
 
     bool is_buy = (order->side == Side::Buy);
+    Quantity initial_qty = order->quantity;
     Quantity remaining_qty = order->quantity;
 
     if (is_buy)
@@ -135,9 +170,7 @@ std::vector<Trade> OrderBook::match(Order *order)
             Price level_price = it->first;
 
             if (order->price < level_price)
-            {
                 break;
-            }
 
             PriceLevel &level = it->second;
 
@@ -146,11 +179,11 @@ std::vector<Trade> OrderBook::match(Order *order)
                 Order *resting_order = level.front();
 
                 if (resting_order->trader_id == order->trader_id)
-                {
                     break;
-                }
 
-                Quantity trade_qty = std::min(remaining_qty, resting_order->quantity);
+                Quantity resting_orig_qty = resting_order->quantity;
+                Quantity trade_qty = std::min(remaining_qty,
+                resting_order->quantity);
 
                 Trade trade(
                     generate_trade_id(),
@@ -165,6 +198,37 @@ std::vector<Trade> OrderBook::match(Order *order)
                 remaining_qty -= trade_qty;
                 resting_order->quantity -=trade_qty;
 
+                if (on_trade_)
+                {
+                    on_trade_(TradeEvent{
+                        trade.trade_id,
+                        trade.buy_order_id,
+                        trade.sell_order_id,
+                        trade.price,
+                        trade.quantity,
+                        trade.timestamp
+                    });
+                }
+
+                if (on_order_event_)
+                {
+                    OrderEventType evt_type = (resting_order->quantity == 0) ? OrderEventType::Filled : OrderEventType::PartialFill;
+                    on_order_event_(OrderEvent{
+                        evt_type,
+                        resting_order->order_id,
+                        resting_order->symbol_id,
+                        resting_order->side,
+                        resting_order->price,
+                        resting_orig_qty,
+                        trade_qty,
+                        resting_order->quantity,
+                        get_timestamp_ns()
+                    });
+                }
+
+                stats_.total_trades++;
+                stats_.total_volume += trade_qty;
+
                 if (resting_order->quantity == 0)
                 {
                     order_lookup_.erase(resting_order->order_id);
@@ -172,13 +236,9 @@ std::vector<Trade> OrderBook::match(Order *order)
                 }
             }
             if (level.is_empty())
-            {
                 it = asks_.erase(it);
-            }
             else
-            {
                 ++it;
-            }
         }
     }
     else
@@ -190,9 +250,7 @@ std::vector<Trade> OrderBook::match(Order *order)
             Price level_price = it->first;
 
             if (order->price > level_price)
-            {
                 break;
-            }
 
             PriceLevel &level = it->second;
 
@@ -201,10 +259,9 @@ std::vector<Trade> OrderBook::match(Order *order)
                 Order *resting_order = level.front();
 
                 if (resting_order->trader_id == order->trader_id)
-                {
                     break;
-                }
 
+                Quantity resting_orig_qty = resting_order->quantity;
                 Quantity trade_qty = std::min(remaining_qty, resting_order->quantity);
 
                 Trade trade(
@@ -220,6 +277,37 @@ std::vector<Trade> OrderBook::match(Order *order)
                 remaining_qty -= trade_qty;
                 resting_order->quantity -= trade_qty;
 
+                if (on_trade_)
+                {
+                    on_trade_(TradeEvent{
+                        trade.trade_id,
+                        trade.buy_order_id,
+                        trade.sell_order_id,
+                        trade.price,
+                        trade.quantity,
+                        trade.timestamp
+                    });
+                }
+
+                if (on_order_event_)
+                {
+                    OrderEventType evt_type = (resting_order->quantity == 0) ? OrderEventType::Filled : OrderEventType::PartialFill;
+                    on_order_event_(OrderEvent{
+                        evt_type,
+                        resting_order->order_id,
+                        resting_order->symbol_id,
+                        resting_order->side,
+                        resting_order->price,
+                        resting_orig_qty,
+                        trade_qty,
+                        resting_order->quantity,
+                        get_timestamp_ns()
+                    });
+                }
+
+                stats_.total_trades++;
+                stats_.total_volume += trade_qty;
+
                 if (resting_order->quantity == 0)
                 {
                     order_lookup_.erase(resting_order->order_id);
@@ -227,21 +315,32 @@ std::vector<Trade> OrderBook::match(Order *order)
                 }
             }
             if (level.is_empty())
-            {
                 it = bids_.erase(it);
-            }
             else
-            {
                 ++it;
-            }
         }
     }
     order->quantity = remaining_qty;
 
-    if (remaining_qty > 0)
+    Quantity total_filled = initial_qty - remaining_qty;
+    if (total_filled > 0 && on_order_event_)
     {
-        add_order(order);
+        OrderEventType evt_type = (remaining_qty == 0) ? OrderEventType::Filled : OrderEventType::PartialFill;
+        on_order_event_(OrderEvent{
+            evt_type,
+            order->order_id,
+            order->symbol_id,
+            order->side,
+            order->price,
+            initial_qty,
+            total_filled,
+            remaining_qty,
+            get_timestamp_ns()
+        });
     }
+
+    if (remaining_qty > 0)
+        add_order(order);
 
     return trades;
 }
