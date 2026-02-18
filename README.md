@@ -4,11 +4,11 @@ A high-performance limit order matching engine implemented in modern C++17.
 
 ## Status
 
-🚧 **Work in Progress** - Currently implementing Phase 1: Core Matching Engine
+🚧 **Work in Progress** - Phase 1 complete, implementing Phase 2: Extended Order Types
 
 ### Implementation Progress
 
-- [ ] Phase 1: Core Matching Engine (Days 1-10)
+- [x] Phase 1: Core Matching Engine (Days 1-10) — `v0.1.0-core`
   - [x] Day 1: Project Setup & Build System
   - [x] Day 2: Price Representation & Core Enums
   - [x] Day 3: Order Struct
@@ -18,7 +18,7 @@ A high-performance limit order matching engine implemented in modern C++17.
   - [x] Day 7: Limit Order Matching Engine
   - [x] Day 8: Multi-level Matching & Edge Cases
   - [x] Day 9: Trade Output & Event System
-  - [ ] Day 10: Phase 1 Integration & Review
+  - [x] Day 10: Phase 1 Integration & Review (86 tests, ASan clean, DESIGN.md)
 - [ ] Phase 2: Extended Order Types (Days 11-15)
   - [ ] Day 11: Market Orders
   - [ ] Day 12: IOC (Immediate or Cancel) Orders
