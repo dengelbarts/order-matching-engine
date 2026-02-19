@@ -154,8 +154,19 @@ std::vector<Trade> OrderBook::match(Order *order)
 {
     std::vector<Trade> trades;
 
-    if (order->order_type != OrderType::Limit)
+    bool is_market = (order->order_type == OrderType::Market);
+
+    if (order->order_type != OrderType::Limit && !is_market)
         return trades;
+    
+    Price original_price = order->price;
+    if (is_market)
+    {
+        if (order->side == Side::Buy)
+            order->price = std::numeric_limits<Price>::max();
+        else
+            order->price = 0;
+    }
 
     bool is_buy = (order->side == Side::Buy);
     Quantity initial_qty = order->quantity;
@@ -168,10 +179,10 @@ std::vector<Trade> OrderBook::match(Order *order)
         while (it != asks_.end() && remaining_qty > 0)
         {
             Price level_price = it->first;
-
+            
             if (order->price < level_price)
                 break;
-
+            
             PriceLevel &level = it->second;
 
             while (!level.is_empty() && remaining_qty > 0)
@@ -180,10 +191,9 @@ std::vector<Trade> OrderBook::match(Order *order)
 
                 if (resting_order->trader_id == order->trader_id)
                     break;
-
+                
                 Quantity resting_orig_qty = resting_order->quantity;
-                Quantity trade_qty = std::min(remaining_qty,
-                resting_order->quantity);
+                Quantity trade_qty = std::min(remaining_qty, resting_order->quantity);
 
                 Trade trade(
                     generate_trade_id(),
@@ -196,7 +206,7 @@ std::vector<Trade> OrderBook::match(Order *order)
                 trades.push_back(trade);
 
                 remaining_qty -= trade_qty;
-                resting_order->quantity -=trade_qty;
+                resting_order->quantity -= trade_qty;
 
                 if (on_trade_)
                 {
@@ -248,7 +258,7 @@ std::vector<Trade> OrderBook::match(Order *order)
         while (it != bids_.end() && remaining_qty > 0)
         {
             Price level_price = it->first;
-
+            
             if (order->price > level_price)
                 break;
 
@@ -320,6 +330,7 @@ std::vector<Trade> OrderBook::match(Order *order)
                 ++it;
         }
     }
+
     order->quantity = remaining_qty;
 
     Quantity total_filled = initial_qty - remaining_qty;
@@ -331,7 +342,7 @@ std::vector<Trade> OrderBook::match(Order *order)
             order->order_id,
             order->symbol_id,
             order->side,
-            order->price,
+            original_price,
             initial_qty,
             total_filled,
             remaining_qty,
@@ -340,7 +351,30 @@ std::vector<Trade> OrderBook::match(Order *order)
     }
 
     if (remaining_qty > 0)
-        add_order(order);
+    {
+        if (is_market)
+        {
+            order->price = original_price;
+            if (on_order_event_)
+            {
+                on_order_event_(OrderEvent{
+                    OrderEventType::Cancelled,
+                    order->order_id,
+                    order->symbol_id,
+                    order->side,
+                    order->price,
+                    initial_qty,
+                    total_filled,
+                    0,
+                    get_timestamp_ns()
+                });
+            }
+        }
+        else
+        {
+            add_order(order);
+        }
+    }
 
     return trades;
 }

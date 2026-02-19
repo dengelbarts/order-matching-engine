@@ -4,7 +4,7 @@ A high-performance limit order matching engine implemented in modern C++17.
 
 ## Status
 
-🚧 **Work in Progress** - Phase 1 complete, implementing Phase 2: Extended Order Types
+🚧 **Work in Progress** - Phase 2 in progress: Extended Order Types (Day 11/15 complete)
 
 ### Implementation Progress
 
@@ -20,7 +20,7 @@ A high-performance limit order matching engine implemented in modern C++17.
   - [x] Day 9: Trade Output & Event System
   - [x] Day 10: Phase 1 Integration & Review (86 tests, ASan clean, DESIGN.md)
 - [ ] Phase 2: Extended Order Types (Days 11-15)
-  - [ ] Day 11: Market Orders
+  - [x] Day 11: Market Orders (94 tests)
   - [ ] Day 12: IOC (Immediate or Cancel) Orders
   - [ ] Day 13: FOK (Fill or Kill) Orders
   - [ ] Day 14: Order Amendments
@@ -96,7 +96,7 @@ This project follows a 25-day structured implementation plan. Each day's work is
 | [`day-10`](../../tree/day-10) | Feb 18, 2026 | **Phase 1 complete** | ✅ Complete |
 | | | |
 | **Milestone** | | [`v0.1.0-core`](../../tree/v0.1.0-core) | Phase 1: Core matching engine |
-| `day-11` | Feb 19, 2026 | Market orders | ⏳ Planned |
+| [`day-11`](../../tree/day-11) | Feb 19, 2026 | Market orders | ✅ Complete |
 | `day-12` | Feb 20, 2026 | IOC orders | ⏳ Planned |
 | `day-13` | Feb 21, 2026 | FOK orders | ⏳ Planned |
 | `day-14` | Feb 22, 2026 | Order amendments | ⏳ Planned |
@@ -314,6 +314,28 @@ git checkout main
 - ✅ Tagged `v0.1.0-core`
 - ✅ **Total tests: 86 (all passing)** ✅
 - ✅ **Phase 1 complete — core matching engine production-ready!** 🚀
+</details>
+
+<details>
+<summary><b>Day 11:</b> Market Orders</summary>
+
+- ✅ Market order type implemented in `match()`: buy sets price to `INT64_MAX`, sell sets price to `0`
+- ✅ Market buy sweeps asks from lowest price upward, matching everything in its path
+- ✅ Market sell sweeps bids from highest price downward, matching everything in its path
+- ✅ Unfilled remainder is cancelled (never rests in the book), with `Cancelled` event fired
+- ✅ Market order against empty book immediately cancels with zero trades
+- ✅ All existing limit order tests continue to pass (no regressions)
+- ✅ Comprehensive test suite: 8 new tests passing
+  - MarketBuyFullFill: market buy fully consumes a single ask
+  - MarketBuyMultiLevel: market buy sweeps two price levels at $10.00 and $11.00
+  - MarketBuyPartialFillRemainderCancelled: partial fill, remainder cancelled, not in book
+  - MarketBuyEmptyBook: zero trades, order immediately cancelled
+  - MarketSellFullFill: market sell fully consumes a single bid
+  - MarketSellPartialFillRemainderCancelled: partial fill, remainder cancelled
+  - MarketSellEmptyBook: zero trades, order immediately cancelled
+  - MarketOrderFiresCancelEventOnEmptyBook: `Cancelled` event fires with `remaining_qty = 0`
+- ✅ **Total tests: 94 (all passing)**
+- ✅ **Market orders complete — book now supports Limit + Market!** 🏪
 </details>
 
 ---
