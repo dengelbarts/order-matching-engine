@@ -68,6 +68,7 @@ add_executable(ome_tests
     test/test_matching.cpp
     test/test_events.cpp
     test/test_market_orders.cpp
+    test/test_ioc_orders.cpp
 )
 target_link_libraries(ome_tests ome_lib GTest::gtest_main)
 

@@ -4,7 +4,7 @@ A high-performance limit order matching engine implemented in modern C++17.
 
 ## Status
 
-🚧 **Work in Progress** - Phase 2 in progress: Extended Order Types (Day 11/15 complete)
+🚧 **Work in Progress** - Phase 2 in progress: Extended Order Types (Day 12/15 complete)
 
 ### Implementation Progress
 
@@ -21,7 +21,8 @@ A high-performance limit order matching engine implemented in modern C++17.
   - [x] Day 10: Phase 1 Integration & Review (86 tests, ASan clean, DESIGN.md)
 - [ ] Phase 2: Extended Order Types (Days 11-15)
   - [x] Day 11: Market Orders (94 tests)
-  - [ ] Day 12: IOC (Immediate or Cancel) Orders
+  - [x] Day 12: IOC (Immediate or Cancel) Orders (103 tests)
+
   - [ ] Day 13: FOK (Fill or Kill) Orders
   - [ ] Day 14: Order Amendments
   - [ ] Day 15: Phase 2 Integration & Review
@@ -97,7 +98,7 @@ This project follows a 25-day structured implementation plan. Each day's work is
 | | | |
 | **Milestone** | | [`v0.1.0-core`](../../tree/v0.1.0-core) | Phase 1: Core matching engine |
 | [`day-11`](../../tree/day-11) | Feb 19, 2026 | Market orders | ✅ Complete |
-| `day-12` | Feb 20, 2026 | IOC orders | ⏳ Planned |
+| [`day-12`](../../tree/day-12) | Feb 20, 2026 | IOC orders | ✅ Complete |
 | `day-13` | Feb 21, 2026 | FOK orders | ⏳ Planned |
 | `day-14` | Feb 22, 2026 | Order amendments | ⏳ Planned |
 | `day-15` | Feb 23, 2026 | **Phase 2 complete** | ⏳ Planned |
@@ -336,6 +337,29 @@ git checkout main
   - MarketOrderFiresCancelEventOnEmptyBook: `Cancelled` event fires with `remaining_qty = 0`
 - ✅ **Total tests: 94 (all passing)**
 - ✅ **Market orders complete — book now supports Limit + Market!** 🏪
+</details>
+
+<details>
+<summary><b>Day 12:</b> IOC (Immediate or Cancel) Orders</summary>
+
+- ✅ IOC order type implemented in `match()`: executes available quantity at limit price or better, cancels remainder
+- ✅ Key distinction from Market: IOC **respects its limit price** — will not sweep beyond it
+- ✅ Key distinction from Limit: IOC **never rests in the book** — any unfilled portion is immediately cancelled
+- ✅ `Cancelled` event fired for any unfilled remainder (zero-fill or partial-fill cases)
+- ✅ `PartialFill` event fires before `Cancelled` when some quantity was matched
+- ✅ All existing Limit and Market order tests continue to pass (no regressions)
+- ✅ Comprehensive test suite: 9 new tests passing
+  - IOCBuyFullFill: IOC buy fully consumes a resting ask
+  - IOCBuyPartialFill: IOC buy fills 50, cancels remaining 50 — never rests in book
+  - IOCBuyNoFillPriceMismatch: IOC buy@9.00 vs ask@10.00, zero fills, order cancelled
+  - IOCBuyEmptyBook: zero trades, order immediately cancelled
+  - IOCBuyRespectsLimitPrice: IOC@10.50 matches ask@10.00 but not ask@11.00
+  - IOCSellFullFill: IOC sell fully consumes a resting bid
+  - IOCSellPartialFill: IOC sell partial fill, remainder cancelled
+  - IOCFiresCancelEventOnNoFill: `Cancelled` event fires with `remaining_qty = 0`
+  - IOCFiresPartialFillThenCancelEvents: correct event sequence — `PartialFill` then `Cancelled`
+- ✅ **Total tests: 103 (all passing)**
+- ✅ **IOC orders complete — book now supports Limit + Market + IOC!** ⚡
 </details>
 
 ---

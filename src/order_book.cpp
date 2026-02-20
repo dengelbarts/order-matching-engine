@@ -155,8 +155,9 @@ std::vector<Trade> OrderBook::match(Order *order)
     std::vector<Trade> trades;
 
     bool is_market = (order->order_type == OrderType::Market);
+    bool is_ioc = (order->order_type == OrderType::IOC);
 
-    if (order->order_type != OrderType::Limit && !is_market)
+    if (order->order_type != OrderType::Limit && !is_market && !is_ioc)
         return trades;
     
     Price original_price = order->price;
@@ -352,7 +353,7 @@ std::vector<Trade> OrderBook::match(Order *order)
 
     if (remaining_qty > 0)
     {
-        if (is_market)
+        if (is_market || is_ioc)
         {
             order->price = original_price;
             if (on_order_event_)
