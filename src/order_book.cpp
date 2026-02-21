@@ -156,9 +156,29 @@ std::vector<Trade> OrderBook::match(Order *order)
 
     bool is_market = (order->order_type == OrderType::Market);
     bool is_ioc = (order->order_type == OrderType::IOC);
+    bool is_fok = (order->order_type == OrderType::FOK);
 
-    if (order->order_type != OrderType::Limit && !is_market && !is_ioc)
+    if (order->order_type != OrderType::Limit && !is_market && !is_ioc && !is_fok)
         return trades;
+
+    if (is_fok && !can_fill(order))
+    {
+        if (on_order_event_)
+        {
+            on_order_event_(OrderEvent{
+                OrderEventType::Cancelled,
+                order->order_id,
+                order->symbol_id,
+                order->side,
+                order->price,
+                order->quantity,
+                0,
+                0,
+                get_timestamp_ns()
+            });
+        }
+        return trades;
+    }
     
     Price original_price = order->price;
     if (is_market)
@@ -353,7 +373,7 @@ std::vector<Trade> OrderBook::match(Order *order)
 
     if (remaining_qty > 0)
     {
-        if (is_market || is_ioc)
+        if (is_market || is_ioc || is_fok)
         {
             order->price = original_price;
             if (on_order_event_)
@@ -378,4 +398,38 @@ std::vector<Trade> OrderBook::match(Order *order)
     }
 
     return trades;
+}
+
+bool OrderBook::can_fill(const Order *order) const
+{
+    Quantity needed = order->quantity;
+
+    if (order->side == Side::Buy)
+    {
+        for (const auto &[level_price, level] : asks_)
+        {
+            if (order->price < level_price)
+                break;
+            
+            Quantity available = level.get_total_quantity();
+            if (available >= needed)
+                return true;
+            needed -= available;
+        }
+    }
+    else
+    {
+        for (const auto &[level_price, level] : bids_)
+        {
+            if (order->price > level_price)
+                break;
+            
+            Quantity available = level.get_total_quantity();
+            if (available >= needed)
+                return true;
+            needed -= available;
+        }
+    }
+
+    return false;
 }

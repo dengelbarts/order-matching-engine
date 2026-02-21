@@ -4,7 +4,7 @@ A high-performance limit order matching engine implemented in modern C++17.
 
 ## Status
 
-🚧 **Work in Progress** - Phase 2 in progress: Extended Order Types (Day 12/15 complete)
+🚧 **Work in Progress** - Phase 2 in progress: Extended Order Types (Day 13/15 complete)
 
 ### Implementation Progress
 
@@ -22,10 +22,10 @@ A high-performance limit order matching engine implemented in modern C++17.
 - [ ] Phase 2: Extended Order Types (Days 11-15)
   - [x] Day 11: Market Orders (94 tests)
   - [x] Day 12: IOC (Immediate or Cancel) Orders (103 tests)
-
-  - [ ] Day 13: FOK (Fill or Kill) Orders
+  - [x] Day 13: FOK (Fill or Kill) Orders (113 tests)
   - [ ] Day 14: Order Amendments
   - [ ] Day 15: Phase 2 Integration & Review
+
 - [ ] Phase 3: Performance Optimization (Days 16-20)
   - [ ] Day 16: Baseline Benchmarks
   - [ ] Day 17: Memory Pool (ObjectPool)
@@ -99,7 +99,7 @@ This project follows a 25-day structured implementation plan. Each day's work is
 | **Milestone** | | [`v0.1.0-core`](../../tree/v0.1.0-core) | Phase 1: Core matching engine |
 | [`day-11`](../../tree/day-11) | Feb 19, 2026 | Market orders | ✅ Complete |
 | [`day-12`](../../tree/day-12) | Feb 20, 2026 | IOC orders | ✅ Complete |
-| `day-13` | Feb 21, 2026 | FOK orders | ⏳ Planned |
+| [`day-13`](../../tree/day-13) | Feb 21, 2026 | FOK orders | ✅ Complete |
 | `day-14` | Feb 22, 2026 | Order amendments | ⏳ Planned |
 | `day-15` | Feb 23, 2026 | **Phase 2 complete** | ⏳ Planned |
 | | | |
@@ -360,6 +360,31 @@ git checkout main
   - IOCFiresPartialFillThenCancelEvents: correct event sequence — `PartialFill` then `Cancelled`
 - ✅ **Total tests: 103 (all passing)**
 - ✅ **IOC orders complete — book now supports Limit + Market + IOC!** ⚡
+</details>
+
+<details>
+<summary><b>Day 13:</b> FOK (Fill or Kill) Orders</summary>
+
+- ✅ `can_fill()` check: walks the opposite side of the book read-only to verify the full quantity is available at the limit price or better — no book state modified
+- ✅ FOK buy: if `can_fill()` returns false, `Cancelled` event fires immediately and zero trades are returned
+- ✅ FOK sell: same logic applied to the bid side
+- ✅ Key distinction from IOC: FOK requires **all-or-nothing** — partial fills are never allowed; either the entire quantity fills or the order is killed outright
+- ✅ Key distinction from Market: FOK respects its limit price — will not match beyond it
+- ✅ Any remainder after execution (e.g. due to self-match prevention) is cancelled, never rested
+- ✅ All existing Limit, Market, and IOC tests continue to pass (no regressions)
+- ✅ Comprehensive test suite: 10 new tests passing
+  - FOKBuySingleLevel: FOK buy 100@10 against [100@10] fills with 1 trade
+  - FOKBuyFullFillMultiLevel: FOK buy 100@10 against [60@10, 40@10] produces 2 trades
+  - FOKBuyKilledInsufficientQty: FOK buy 100@10 against [50@10] killed, resting order untouched
+  - FOKBuyKilledPriceMismatch: FOK buy@9 against sell@10 killed immediately
+  - FOKBuyEmptyBook: zero trades, order killed, never rests
+  - FOKSellFullFill: FOK sell fully consumes a resting bid
+  - FOKSellKilledInsufficientQty: FOK sell killed, resting bid quantity unchanged
+  - FOKFiresCancelEventOnKill: `Cancelled` event fires with `filled_qty = 0`, `remaining_qty = 0`
+  - FOKFiresTradeEventsOnSuccess: `TradeEvent` fires with correct price and quantity on full fill
+  - FOKNeverRestsInBook: killed FOK never appears in bid or ask side
+- ✅ **Total tests: 113 (all passing)**
+- ✅ **FOK orders complete — all four order types now implemented!** 🎯
 </details>
 
 ---

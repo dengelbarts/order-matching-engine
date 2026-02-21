@@ -28,6 +28,8 @@ class OrderBook
             uint64_t total_volume = 0;
         } stats_;
 
+        bool can_fill(const Order *order) const;
+
     public:
         OrderBook() = default;
         ~OrderBook() = default;
