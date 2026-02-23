@@ -433,3 +433,76 @@ bool OrderBook::can_fill(const Order *order) const
 
     return false;
 }
+
+bool OrderBook::amend_order(OrderId order_id, Quantity new_qty, Price new_price)
+{
+    auto it = order_lookup_.find(order_id);
+    if (it == order_lookup_.end())
+        return false;
+    
+    Order *order = it->second;
+
+    if (new_qty == 0)
+        return cancel_order(order_id);
+    
+    Price old_price = order->price;
+    Quantity old_qty = order->quantity;
+
+    bool loses_priority = (new_qty > old_qty) || (new_price != old_price);
+
+    if (loses_priority)
+    {
+        if (order->side == Side::Buy)
+        {
+            auto bid_it = bids_.find(order->price);
+            if (bid_it != bids_.end())
+            {
+                bid_it->second.remove_order(order_id);
+                if (bid_it->second.is_empty())
+                    bids_.erase(bid_it);
+            }
+        }
+        else
+        {
+            auto ask_it = asks_.find(order->price);
+            if (ask_it != asks_.end())
+            {
+                ask_it->second.remove_order(order_id);
+                if (ask_it->second.is_empty())
+                    asks_.erase(ask_it);
+            }
+        }
+
+        order->price = new_price;
+        order->quantity = new_qty;
+        order->timestamp = get_timestamp_ns();
+
+        if (order->side == Side::Buy)
+            bids_[order->price].add_order(order);
+        else
+            asks_[order->price].add_order(order);
+    }
+    else
+    {
+        order->quantity = new_qty;
+    }
+
+    if (on_order_event_)
+    {
+        on_order_event_(OrderEvent{
+            OrderEventType::Amended,
+            order->order_id,
+            order->symbol_id,
+            order->side,
+            new_price,
+            new_qty,
+            0,
+            new_qty,
+            get_timestamp_ns(),
+            old_price,
+            old_qty
+        });
+    }
+
+    return true;
+}

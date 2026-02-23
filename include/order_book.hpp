@@ -49,6 +49,8 @@ class OrderBook
 
         bool cancel_order(OrderId order_id);
 
+        bool amend_order(OrderId order_id, Quantity new_qty, Price new_price);
+
         struct BBO
         {
             Price price;

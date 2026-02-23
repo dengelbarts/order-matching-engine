@@ -9,7 +9,8 @@ enum class OrderEventType
     New,
     Cancelled,
     Filled,
-    PartialFill
+    PartialFill,
+    Amended
 };
 
 inline const char *to_string(OrderEventType type)
@@ -19,6 +20,7 @@ inline const char *to_string(OrderEventType type)
         case OrderEventType::New: return "New";
         case OrderEventType::Cancelled: return "Cancelled";
         case OrderEventType::Filled: return "Filled";
+        case OrderEventType::Amended: return "Amended";
         case OrderEventType::PartialFill: return "PartialFill";
     }
     return "Unknown";
@@ -35,6 +37,8 @@ struct OrderEvent
     Quantity filled_qty;
     Quantity remaining_qty;
     Timestamp timestamp;
+    Price old_price = 0;
+    Quantity old_qty = 0;
 };
 
 struct TradeEvent
