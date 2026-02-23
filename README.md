@@ -4,7 +4,7 @@ A high-performance limit order matching engine implemented in modern C++17.
 
 ## Status
 
-🚧 **Work in Progress** - Phase 2 in progress: Extended Order Types (Day 13/15 complete)
+🚧 **Work in Progress** - Phase 2 complete: Extended Order Types (Day 15/15 complete) — `v0.2.0-extended`
 
 ### Implementation Progress
 
@@ -19,12 +19,12 @@ A high-performance limit order matching engine implemented in modern C++17.
   - [x] Day 8: Multi-level Matching & Edge Cases
   - [x] Day 9: Trade Output & Event System
   - [x] Day 10: Phase 1 Integration & Review (86 tests, ASan clean, DESIGN.md)
-- [ ] Phase 2: Extended Order Types (Days 11-15)
+- [x] Phase 2: Extended Order Types (Days 11-15) — `v0.2.0-extended`
   - [x] Day 11: Market Orders (94 tests)
   - [x] Day 12: IOC (Immediate or Cancel) Orders (103 tests)
   - [x] Day 13: FOK (Fill or Kill) Orders (113 tests)
-  - [ ] Day 14: Order Amendments
-  - [ ] Day 15: Phase 2 Integration & Review
+  - [x] Day 14: Order Amendments (122 tests)
+  - [x] Day 15: Phase 2 Integration & Review (133 tests, ASan clean, DESIGN.md)
 
 - [ ] Phase 3: Performance Optimization (Days 16-20)
   - [ ] Day 16: Baseline Benchmarks
@@ -100,8 +100,8 @@ This project follows a 25-day structured implementation plan. Each day's work is
 | [`day-11`](../../tree/day-11) | Feb 19, 2026 | Market orders | ✅ Complete |
 | [`day-12`](../../tree/day-12) | Feb 20, 2026 | IOC orders | ✅ Complete |
 | [`day-13`](../../tree/day-13) | Feb 21, 2026 | FOK orders | ✅ Complete |
-| `day-14` | Feb 22, 2026 | Order amendments | ⏳ Planned |
-| `day-15` | Feb 23, 2026 | **Phase 2 complete** | ⏳ Planned |
+| [`day-14`](../../tree/day-14) | Feb 22, 2026 | Order amendments | ✅ Complete |
+| [`day-15`](../../tree/day-15) | Feb 23, 2026 | **Phase 2 complete** | ✅ Complete |
 | | | |
 | **Milestone** | | [`v0.2.0-extended`](../../tree/v0.2.0-extended) | Phase 2: Extended order types |
 | `day-16` | Feb 24, 2026 | Baseline benchmarks | ⏳ Planned |
@@ -385,6 +385,46 @@ git checkout main
   - FOKNeverRestsInBook: killed FOK never appears in bid or ask side
 - ✅ **Total tests: 113 (all passing)**
 - ✅ **FOK orders complete — all four order types now implemented!** 🎯
+</details>
+
+<details>
+<summary><b>Day 14:</b> Order Amendments</summary>
+
+- ✅ `amend_order(OrderId, new_qty, new_price)` implemented
+- ✅ Quantity decrease: preserves time priority — order updated in place, position in queue unchanged
+- ✅ Quantity increase: loses time priority — order removed and re-added at back of level with fresh timestamp
+- ✅ Price change (any direction): loses time priority — order migrated to new price level
+- ✅ Amendment to zero quantity treated as a cancel
+- ✅ Amendment of non-existent order returns `false`
+- ✅ `OrderEventType::Amended` added to event system — carries `old_price` and `old_qty` alongside new values
+- ✅ All existing tests continue to pass (no regressions)
+- ✅ Comprehensive test suite: 9 new tests passing
+  - QtyDecreaseKeepsPriority: timestamp unchanged after qty-down amendment
+  - QtyDecreaseReflectedInBBO: BBO quantity updates immediately
+  - PriceChangeLosesPriority: new timestamp assigned after price change
+  - PriceChangeMovesPriceLevel: old level removed, new level created
+  - QtyIncreaseLosesPriority: new timestamp assigned after qty increase
+  - AmendNonExistentOrderReturnsFalse: returns false cleanly
+  - AmendToZeroQtyActsAsCancel: order removed from book
+  - AmendedEventFired: `Amended` event fires with correct new qty
+  - AmendedEventCarriesOldAndNewPrice: `old_price` and `price` fields correct
+- ✅ **Total tests: 122 (all passing)**
+- ✅ **Order amendments complete — all exchange-standard order operations implemented!** 📋
+</details>
+
+<details>
+<summary><b>Day 15:</b> Phase 2 Integration & Review</summary>
+
+- ✅ Comprehensive integration test suite covering all four order types together
+- ✅ 11 mixed scenarios exercising 50+ orders in sequence — limits, markets, IOCs, FOKs, amendments, cancels
+- ✅ Final book state verified after each scenario (BBO, has_order, quantity checks)
+- ✅ Event count verification: correct number of `Filled`/`TradeEvent` per scenario
+- ✅ FIFO priority verified through full pipeline: amend-down → match → correct fill order
+- ✅ AddressSanitizer run: 133/133 tests pass with zero warnings
+- ✅ `docs/DESIGN.md` Phase 2 section written: order type strategies, amendment priority rules, test coverage table
+- ✅ Tagged `v0.2.0-extended`
+- ✅ **Total tests: 133 (all passing)** ✅
+- ✅ **Phase 2 complete — all extended order types production-ready!** 🚀
 </details>
 
 ---
