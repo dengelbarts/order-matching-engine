@@ -262,3 +262,81 @@ P = distinct price levels, n = orders per level, K = levels swept by match.
 ## 9. Phase 1 Tag
 
 `v0.1.0-core` — tagged after all Phase 1 tests pass with zero ASan warnings.
+
+---
+
+## Phase 2: Extended Order Types (Days 11–15)
+
+---
+
+## 10. Order Type Implementations
+
+### 10.1 Market Orders (Day 11)
+
+A Market order has no price constraint — it matches at whatever price is
+available. Implementation: temporarily set the price to `INT64_MAX` (buy)
+or `0` (sell) before entering the matching loop. This lets the existing
+price-comparison logic work unchanged. The sentinel value is restored
+before any cancel event is fired.
+
+**Key property:** Any unfilled remainder is cancelled immediately. Market
+orders never rest in the book.
+
+### 10.2 IOC — Immediate or Cancel (Day 12)
+
+IOC is a price-constrained Market order. It matches at the limit price or
+better, and any unfilled portion is cancelled. The matching loop is
+identical to Limit; the difference is what happens after: if
+`remaining_qty > 0`, a `Cancelled` event fires and the order is not added
+to the book.
+
+**Difference from Market:** IOC respects a limit price. A Market order
+ignores price entirely.
+
+### 10.3 FOK — Fill or Kill (Day 13)
+
+FOK requires that the *entire* quantity be fillable before a single trade
+executes. Implementation: a read-only `can_fill()` pre-check walks the
+opposite side and tallies available quantity. If `can_fill()` returns
+false, a `Cancelled` event fires and the loop is never entered — no book
+state is modified.
+
+**Key invariant:** `can_fill()` is side-effect-free. The book is never
+mutated on a FOK kill.
+
+### 10.4 Order Amendment (Day 14)
+
+`amend_order(order_id, new_qty, new_price)` implements the exchange rule
+for time-priority:
+
+| Change | Priority |
+|---|---|
+| Quantity decrease | Preserved — update in place |
+| Quantity increase | Lost — remove and re-add |
+| Price change (any) | Lost — remove and re-add |
+| Amendment to zero | Treated as cancel |
+
+"Lost priority" means the order is removed from its current position in the
+deque and re-appended at the back of the new price level, with a fresh
+timestamp. This matches the behaviour of NYSE, LSE, and most venues.
+
+An `Amended` `OrderEvent` fires carrying `old_price` and `old_qty`
+alongside the new values, enabling downstream systems to audit the change.
+
+---
+
+## 11. Phase 2 Test Coverage
+
+| File | Coverage |
+|---|---|
+| test_market_orders.cpp | Full fill, multi-level, partial+cancel, empty book |
+| test_ioc_orders.cpp | Full fill, partial fill, no fill, price mismatch |
+| test_fok_orders.cpp | Full fill, kill (qty), kill (price), event verification |
+| test_amend_orders.cpp | Priority rules, price level migration, event fields |
+| test_integration.cpp | 11 mixed scenarios, 50+ orders, final book state |
+
+---
+
+## 12. Phase 2 Tag
+
+`v0.2.0-extended` — tagged after all Phase 2 tests pass with zero ASan warnings.
