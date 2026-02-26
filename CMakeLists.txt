@@ -82,6 +82,7 @@ add_executable(ome_tests
     test/test_fok_orders.cpp
     test/test_amend_orders.cpp
     test/test_integration.cpp
+    test/test_object_pool.cpp
 )
 target_link_libraries(ome_tests ome_lib GTest::gtest_main)
 

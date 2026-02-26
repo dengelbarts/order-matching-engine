@@ -10,6 +10,7 @@
 #include "price_level.hpp"
 #include "trade.hpp"
 #include "events.hpp"
+#include "object_pool.hpp"
 
 class OrderBook
 {
@@ -27,6 +28,8 @@ class OrderBook
             uint64_t total_trades = 0;
             uint64_t total_volume = 0;
         } stats_;
+
+        ObjectPool<Order> pool_;
 
         bool can_fill(const Order *order) const;
 
@@ -68,6 +71,10 @@ class OrderBook
         };
 
         Spread get_spread() const;
+
+        Order *create_order(OrderId id, SymbolId sym, TraderId trader, Side side, Price price, Quantity qty, Timestamp ts, OrderType type);
+
+        ObjectPool<Order>::Stats get_pool_stats() const { return pool_.get_stats(); }
 
         std::vector<Trade> match(Order *order);
 };

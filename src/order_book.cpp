@@ -102,6 +102,9 @@ bool OrderBook::cancel_order(OrderId order_id)
 
     order_lookup_.erase(lookup_it);
 
+    if (pool_.is_from_pool(order))
+        pool_.deallocate(order);
+
     return true;
 }
 
@@ -264,6 +267,8 @@ std::vector<Trade> OrderBook::match(Order *order)
                 {
                     order_lookup_.erase(resting_order->order_id);
                     level.remove_order(resting_order->order_id);
+                    if (pool_.is_from_pool(resting_order))
+                        pool_.deallocate(resting_order);
                 }
             }
             if (level.is_empty())
@@ -343,6 +348,8 @@ std::vector<Trade> OrderBook::match(Order *order)
                 {
                     order_lookup_.erase(resting_order->order_id);
                     level.remove_order(resting_order->order_id);
+                    if (pool_.is_from_pool(resting_order))
+                        pool_.deallocate(resting_order);
                 }
             }
             if (level.is_empty())
@@ -505,4 +512,17 @@ bool OrderBook::amend_order(OrderId order_id, Quantity new_qty, Price new_price)
     }
 
     return true;
+}
+
+Order *OrderBook::create_order(OrderId id, SymbolId sym, TraderId trader, Side side, Price price, Quantity qty, Timestamp ts, OrderType type)
+{
+    Order *order = pool_.allocate(id, sym, trader, side, price, qty, ts, type);
+    match(order);
+
+    if (!has_order(id))
+    {
+        pool_.deallocate(order);
+        return nullptr;
+    }
+    return order;
 }
