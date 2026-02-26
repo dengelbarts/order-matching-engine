@@ -4,7 +4,7 @@ A high-performance limit order matching engine implemented in modern C++17.
 
 ## Status
 
-🚧 **Work in Progress** - Phase 2 complete: Extended Order Types (Day 15/15 complete) — `v0.2.0-extended`
+🚧 **Work in Progress** - Phase 3 in progress: Performance Optimization (Day 18/25 complete) — `v0.5.0-hot-path`
 
 ### Implementation Progress
 
@@ -26,10 +26,10 @@ A high-performance limit order matching engine implemented in modern C++17.
   - [x] Day 14: Order Amendments (122 tests)
   - [x] Day 15: Phase 2 Integration & Review (133 tests, ASan clean, DESIGN.md)
 
-- [ ] Phase 3: Performance Optimization (Days 16-20)
-  - [ ] Day 16: Baseline Benchmarks
-  - [ ] Day 17: Memory Pool (ObjectPool)
-  - [ ] Day 18: Hot-Path Optimization
+- [x] Phase 3: Performance Optimization (Days 16-20) — in progress
+  - [x] Day 16: Baseline Benchmarks — `v0.3.0-benchmarks`
+  - [x] Day 17: Memory Pool (ObjectPool) — `v0.4.0-memory-pool`
+  - [x] Day 18: Hot-Path Optimization — `v0.5.0-hot-path`
   - [ ] Day 19: Realistic Benchmark Suite
   - [ ] Day 20: Performance Polish & Documentation
 - [ ] Phase 4: Multithreading & Final Polish (Days 21-25)
@@ -104,9 +104,9 @@ This project follows a 25-day structured implementation plan. Each day's work is
 | [`day-15`](../../tree/day-15) | Feb 23, 2026 | **Phase 2 complete** | ✅ Complete |
 | | | |
 | **Milestone** | | [`v0.2.0-extended`](../../tree/v0.2.0-extended) | Phase 2: Extended order types |
-| `day-16` | Feb 24, 2026 | Baseline benchmarks | ⏳ Planned |
-| `day-17` | Feb 25, 2026 | Memory pool | ⏳ Planned |
-| `day-18` | Feb 26, 2026 | Hot-path optimization | ⏳ Planned |
+| [`v0.3.0-benchmarks`](../../tree/v0.3.0-benchmarks) | Feb 24, 2026 | Baseline benchmarks | ✅ Complete |
+| [`v0.4.0-memory-pool`](../../tree/v0.4.0-memory-pool) | Feb 25, 2026 | Memory pool (ObjectPool) | ✅ Complete |
+| [`v0.5.0-hot-path`](../../tree/v0.5.0-hot-path) | Feb 26, 2026 | Hot-path optimization | ✅ Complete |
 | `day-19` | Feb 27, 2026 | Realistic benchmarks | ⏳ Planned |
 | `day-20` | Feb 28, 2026 | **Phase 3 complete** | ⏳ Planned |
 | | | |
@@ -425,6 +425,57 @@ git checkout main
 - ✅ Tagged `v0.2.0-extended`
 - ✅ **Total tests: 133 (all passing)** ✅
 - ✅ **Phase 2 complete — all extended order types production-ready!** 🚀
+</details>
+
+<details>
+<summary><b>Day 16:</b> Baseline Benchmarks</summary>
+
+- ✅ Google Benchmark (v1.8.3) added via CMake `FetchContent`
+- ✅ Throughput benchmark (`ome_bench_throughput`): add-only and add+match scenarios
+- ✅ Latency benchmark (`ome_bench_latency`): manual timing with `std::chrono::high_resolution_clock`, p50/p95/p99/p99.9 percentiles
+- ✅ Baseline numbers recorded on dev machine (GCC 13.3, `-O3`):
+  - Add+match throughput: **10.5M orders/sec** (70× above the 150K target)
+  - p50 latency: **128 ns** — p99: **226 ns** — p99.9: **368 ns**
+- ✅ Tagged `v0.3.0-benchmarks`
+- ✅ **Total tests: 143 (all passing)**
+</details>
+
+<details>
+<summary><b>Day 17:</b> Memory Pool (ObjectPool)</summary>
+
+- ✅ `ObjectPool<T, Capacity>` template class (`include/object_pool.hpp`)
+  - Pre-allocated slab of `Capacity` objects with `alignas(T)` storage
+  - Free-list stack for O(1) `allocate()` and `deallocate()`
+  - Placement `new` for construction, explicit `ptr->~T()` for destruction
+  - Graceful heap fallback with `stderr` warning when pool exhausted
+  - Stats: `in_use`, `high_water_mark`, `heap_fallbacks`, `available`
+  - `is_from_pool()` bounds check to distinguish pool vs heap vs stack objects
+- ✅ Integrated with `OrderBook`:
+  - `create_order(...)` allocates from pool, calls `match()`, returns pointer or `nullptr` if consumed
+  - `cancel_order()` and `match()` return consumed orders to pool via `is_from_pool()` guard
+  - `get_pool_stats()` exposes pool statistics
+- ✅ 10 new tests (`test_object_pool.cpp`): allocate/deallocate cycles, slot reuse, high-water mark, exhaustion fallback, OrderBook integration
+- ✅ Zero regressions — all existing tests pass
+- ✅ Tagged `v0.4.0-memory-pool`
+- ✅ **Total tests: 143 (all passing)**
+</details>
+
+<details>
+<summary><b>Day 18:</b> Hot-Path Optimization</summary>
+
+- ✅ Eliminated `std::vector<Trade>` heap allocation per `match()` call:
+  - Introduced private `match_impl(Order*, std::vector<Trade>&)` — body of matching logic
+  - Public `match()` remains unchanged (thin wrapper, backward compatible)
+  - `create_order()` reuses `scratch_trades_` member — `clear()` instead of `new`/`delete` per call
+- ✅ `LIKELY`/`UNLIKELY` branch hints (`__builtin_expect`) on self-trade prevention checks
+- ✅ New benchmark `BM_ThroughputWithPool`: exercises fully-optimised path (pool alloc + scratch vector)
+- ✅ Day 18 results vs Day 16 baseline:
+  - Pool path: **10.77M orders/sec** (+8% vs baseline, zero heap allocs in steady state)
+  - Latency p50/p99 unchanged (~125 ns / ~231 ns) — already well under targets
+- ✅ Remaining hot-path heap allocation identified: `std::map` tree nodes on new price level insert (target: Day 19+)
+- ✅ Results documented in `bench/RESULTS.md`
+- ✅ Tagged `v0.5.0-hot-path`
+- ✅ **Total tests: 143 (all passing)**
 </details>
 
 ---

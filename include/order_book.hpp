@@ -30,8 +30,10 @@ class OrderBook
         } stats_;
 
         ObjectPool<Order> pool_;
+        std::vector<Trade> scratch_trades_;
 
         bool can_fill(const Order *order) const;
+        void match_impl(Order *order, std::vector<Trade> &out);
 
     public:
         OrderBook() = default;

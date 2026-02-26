@@ -61,3 +61,23 @@ BENCHMARK(BM_ThroughputMatchingOrders)
     ->Arg(1000)
     ->Arg(10000)
     ->Unit(benchmark::kMicrosecond);
+
+static void BM_ThroughputWithPool(benchmark::State &state)
+{
+    const int N = static_cast<int>(state.range(0));
+
+    for (auto _ : state)
+    {
+        OrderBook book;
+        for (int i = 0; i < N; i++)
+        {
+            book.create_order(i * 2 + 1, 1, 1, Side::Buy, 10000, 100, 0, OrderType::Limit);
+            book.create_order(i * 2 + 2, 1, 2, Side::Sell, 10000, 100, 0, OrderType::Limit);
+        }
+    }
+    state.SetItemsProcessed(state.iterations() * N * 2);
+}
+BENCHMARK(BM_ThroughputWithPool)
+    ->Arg(1000)
+    ->Arg(10000)
+    ->Unit(benchmark::kMicrosecond);

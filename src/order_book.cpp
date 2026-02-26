@@ -1,5 +1,13 @@
 #include "order_book.hpp"
 
+#if defined(__GNUC__) || defined(__clang__)
+#define LIKELY(x) __builtin_expect(!!(x), 1)
+#define UNLIKELY(x) __builtin_expect(!!(x), 0)
+#else
+#define LIKELY(x) (x)
+#define UNLIKELY(x) (x)
+#endif
+
 void OrderBook::set_trade_callback(std::function<void(const TradeEvent &)> cb)
 {
     on_trade_ = std::move(cb);
@@ -156,13 +164,18 @@ OrderBook::Spread OrderBook::get_spread() const
 std::vector<Trade> OrderBook::match(Order *order)
 {
     std::vector<Trade> trades;
+    match_impl(order, trades);
+    return trades;
+}
 
+void OrderBook::match_impl(Order *order, std::vector<Trade> &trades)
+{
     bool is_market = (order->order_type == OrderType::Market);
     bool is_ioc = (order->order_type == OrderType::IOC);
     bool is_fok = (order->order_type == OrderType::FOK);
 
     if (order->order_type != OrderType::Limit && !is_market && !is_ioc && !is_fok)
-        return trades;
+        return;
 
     if (is_fok && !can_fill(order))
     {
@@ -180,9 +193,9 @@ std::vector<Trade> OrderBook::match(Order *order)
                 get_timestamp_ns()
             });
         }
-        return trades;
+        return;
     }
-    
+
     Price original_price = order->price;
     if (is_market)
     {
@@ -213,7 +226,7 @@ std::vector<Trade> OrderBook::match(Order *order)
             {
                 Order *resting_order = level.front();
 
-                if (resting_order->trader_id == order->trader_id)
+                if (UNLIKELY(resting_order->trader_id == order->trader_id))
                     break;
                 
                 Quantity resting_orig_qty = resting_order->quantity;
@@ -294,7 +307,7 @@ std::vector<Trade> OrderBook::match(Order *order)
             {
                 Order *resting_order = level.front();
 
-                if (resting_order->trader_id == order->trader_id)
+                if (UNLIKELY(resting_order->trader_id == order->trader_id))
                     break;
 
                 Quantity resting_orig_qty = resting_order->quantity;
@@ -403,8 +416,6 @@ std::vector<Trade> OrderBook::match(Order *order)
             add_order(order);
         }
     }
-
-    return trades;
 }
 
 bool OrderBook::can_fill(const Order *order) const
@@ -517,8 +528,8 @@ bool OrderBook::amend_order(OrderId order_id, Quantity new_qty, Price new_price)
 Order *OrderBook::create_order(OrderId id, SymbolId sym, TraderId trader, Side side, Price price, Quantity qty, Timestamp ts, OrderType type)
 {
     Order *order = pool_.allocate(id, sym, trader, side, price, qty, ts, type);
-    match(order);
-
+    scratch_trades_.clear();
+    match_impl(order, scratch_trades_);
     if (!has_order(id))
     {
         pool_.deallocate(order);
