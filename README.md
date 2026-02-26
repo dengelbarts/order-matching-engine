@@ -4,7 +4,7 @@ A high-performance limit order matching engine implemented in modern C++17.
 
 ## Status
 
-🚧 **Work in Progress** - Phase 3 in progress: Performance Optimization (Day 18/25 complete) — `v0.5.0-hot-path`
+🚧 **Work in Progress** - Phase 3 in progress: Performance Optimization (Day 18/25 complete) — `day-18`
 
 ### Implementation Progress
 
@@ -27,9 +27,9 @@ A high-performance limit order matching engine implemented in modern C++17.
   - [x] Day 15: Phase 2 Integration & Review (133 tests, ASan clean, DESIGN.md)
 
 - [x] Phase 3: Performance Optimization (Days 16-20) — in progress
-  - [x] Day 16: Baseline Benchmarks — `v0.3.0-benchmarks`
-  - [x] Day 17: Memory Pool (ObjectPool) — `v0.4.0-memory-pool`
-  - [x] Day 18: Hot-Path Optimization — `v0.5.0-hot-path`
+  - [x] Day 16: Baseline Benchmarks — `day-16`
+  - [x] Day 17: Memory Pool (ObjectPool) — `day-17`
+  - [x] Day 18: Hot-Path Optimization — `day-18`
   - [ ] Day 19: Realistic Benchmark Suite
   - [ ] Day 20: Performance Polish & Documentation
 - [ ] Phase 4: Multithreading & Final Polish (Days 21-25)
@@ -104,9 +104,9 @@ This project follows a 25-day structured implementation plan. Each day's work is
 | [`day-15`](../../tree/day-15) | Feb 23, 2026 | **Phase 2 complete** | ✅ Complete |
 | | | |
 | **Milestone** | | [`v0.2.0-extended`](../../tree/v0.2.0-extended) | Phase 2: Extended order types |
-| [`v0.3.0-benchmarks`](../../tree/v0.3.0-benchmarks) | Feb 24, 2026 | Baseline benchmarks | ✅ Complete |
-| [`v0.4.0-memory-pool`](../../tree/v0.4.0-memory-pool) | Feb 25, 2026 | Memory pool (ObjectPool) | ✅ Complete |
-| [`v0.5.0-hot-path`](../../tree/v0.5.0-hot-path) | Feb 26, 2026 | Hot-path optimization | ✅ Complete |
+| [`day-16`](../../tree/day-16) | Feb 24, 2026 | Baseline benchmarks | ✅ Complete |
+| [`day-17`](../../tree/day-17) | Feb 25, 2026 | Memory pool (ObjectPool) | ✅ Complete |
+| [`day-18`](../../tree/day-18) | Feb 26, 2026 | Hot-path optimization | ✅ Complete |
 | `day-19` | Feb 27, 2026 | Realistic benchmarks | ⏳ Planned |
 | `day-20` | Feb 28, 2026 | **Phase 3 complete** | ⏳ Planned |
 | | | |
@@ -436,7 +436,7 @@ git checkout main
 - ✅ Baseline numbers recorded on dev machine (GCC 13.3, `-O3`):
   - Add+match throughput: **10.5M orders/sec** (70× above the 150K target)
   - p50 latency: **128 ns** — p99: **226 ns** — p99.9: **368 ns**
-- ✅ Tagged `v0.3.0-benchmarks`
+- ✅ Tagged `day-16`
 - ✅ **Total tests: 143 (all passing)**
 </details>
 
@@ -456,7 +456,7 @@ git checkout main
   - `get_pool_stats()` exposes pool statistics
 - ✅ 10 new tests (`test_object_pool.cpp`): allocate/deallocate cycles, slot reuse, high-water mark, exhaustion fallback, OrderBook integration
 - ✅ Zero regressions — all existing tests pass
-- ✅ Tagged `v0.4.0-memory-pool`
+- ✅ Tagged `day-17`
 - ✅ **Total tests: 143 (all passing)**
 </details>
 
@@ -474,7 +474,7 @@ git checkout main
   - Latency p50/p99 unchanged (~125 ns / ~231 ns) — already well under targets
 - ✅ Remaining hot-path heap allocation identified: `std::map` tree nodes on new price level insert (target: Day 19+)
 - ✅ Results documented in `bench/RESULTS.md`
-- ✅ Tagged `v0.5.0-hot-path`
+- ✅ Tagged `day-18`
 - ✅ **Total tests: 143 (all passing)**
 </details>
 
