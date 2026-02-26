@@ -44,6 +44,16 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
+# Fetch Google Benchmark
+FetchContent_Declare(
+    googlebenchmark
+    GIT_REPOSITORY https://github.com/google/benchmark.git
+    GIT_TAG v1.8.3
+)
+set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googlebenchmark)
+
 # Enable testing
 enable_testing()
 
@@ -83,3 +93,11 @@ gtest_discover_tests(ome_tests)
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "C++ standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "Compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
+
+# Throughput benchmark (Google Benchmark)
+add_executable(ome_bench_throughput bench/bench_throughput.cpp)
+target_link_libraries(ome_bench_throughput ome_lib benchmark::benchmark_main)
+
+# Latency benchmark (standalone)
+add_executable(ome_bench_latency bench/bench_latency.cpp)
+target_link_libraries(ome_bench_latency ome_lib)
