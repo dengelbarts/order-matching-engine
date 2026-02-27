@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdio>
+#include <memory>
 #include <new>
 #include <utility>
 
@@ -11,8 +12,8 @@ class ObjectPool
     static_assert(Capacity > 0, "Pool capacity must be positive");
 
     private:
-        alignas(T) std::byte storage_[sizeof(T) * Capacity];
-        T *free_list_[Capacity];
+        std::unique_ptr<std::byte[]> storage_;
+        std::unique_ptr<T*[]>        free_list_;
         std::size_t free_count_;
 
         std::size_t in_use_ = 0;
@@ -21,7 +22,7 @@ class ObjectPool
 
         T *slot(std::size_t i) noexcept
         {
-            return reinterpret_cast<T*>(storage_ + i * sizeof(T));
+            return reinterpret_cast<T*>(storage_.get() + i * sizeof(T));
         }
 
     public:
@@ -34,7 +35,10 @@ class ObjectPool
             std::size_t heap_fallbacks;
         };
 
-        ObjectPool() : free_count_(Capacity)
+        ObjectPool()
+            : storage_(std::make_unique<std::byte[]>(sizeof(T) * Capacity))
+            , free_list_(std::make_unique<T*[]>(Capacity))
+            , free_count_(Capacity)
         {
             for (std::size_t i = 0; i < Capacity; i++)
                 free_list_[i] = slot(i);
@@ -84,8 +88,8 @@ class ObjectPool
         bool is_from_pool(const T *ptr) const noexcept
         {
             const auto *p = reinterpret_cast<const std::byte*>(ptr);
-            const auto *lo = storage_;
-            const auto *hi = storage_ + sizeof(T) * Capacity;
+            const auto *lo = storage_.get();
+            const auto *hi = storage_.get() + sizeof(T) * Capacity;
             return p >= lo && p < hi;
         }
 

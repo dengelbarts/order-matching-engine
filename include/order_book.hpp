@@ -29,7 +29,7 @@ class OrderBook
             uint64_t total_volume = 0;
         } stats_;
 
-        ObjectPool<Order> pool_;
+        ObjectPool<Order, 1 << 19> pool_;
         std::vector<Trade> scratch_trades_;
 
         bool can_fill(const Order *order) const;
@@ -76,7 +76,7 @@ class OrderBook
 
         Order *create_order(OrderId id, SymbolId sym, TraderId trader, Side side, Price price, Quantity qty, Timestamp ts, OrderType type);
 
-        ObjectPool<Order>::Stats get_pool_stats() const { return pool_.get_stats(); }
+        ObjectPool<Order, 1 << 19>::Stats get_pool_stats() const { return pool_.get_stats(); }
 
         std::vector<Trade> match(Order *order);
 };

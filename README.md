@@ -4,7 +4,7 @@ A high-performance limit order matching engine implemented in modern C++17.
 
 ## Status
 
-🚧 **Work in Progress** - Phase 3 in progress: Performance Optimization (Day 18/25 complete) — `day-18`
+🚧 **Work in Progress** - Phase 3 in progress: Performance Optimization (Day 19/25 complete) — `day-19`
 
 ### Implementation Progress
 
@@ -30,7 +30,7 @@ A high-performance limit order matching engine implemented in modern C++17.
   - [x] Day 16: Baseline Benchmarks — `day-16`
   - [x] Day 17: Memory Pool (ObjectPool) — `day-17`
   - [x] Day 18: Hot-Path Optimization — `day-18`
-  - [ ] Day 19: Realistic Benchmark Suite
+  - [x] Day 19: Realistic Benchmark Suite — `day-19`
   - [ ] Day 20: Performance Polish & Documentation
 - [ ] Phase 4: Multithreading & Final Polish (Days 21-25)
   - [ ] Day 21: SPSC Lock-Free Queue
@@ -107,7 +107,7 @@ This project follows a 25-day structured implementation plan. Each day's work is
 | [`day-16`](../../tree/day-16) | Feb 24, 2026 | Baseline benchmarks | ✅ Complete |
 | [`day-17`](../../tree/day-17) | Feb 25, 2026 | Memory pool (ObjectPool) | ✅ Complete |
 | [`day-18`](../../tree/day-18) | Feb 26, 2026 | Hot-path optimization | ✅ Complete |
-| `day-19` | Feb 27, 2026 | Realistic benchmarks | ⏳ Planned |
+| [`day-19`](../../tree/day-19) | Feb 27, 2026 | Realistic benchmark suite | ✅ Complete |
 | `day-20` | Feb 28, 2026 | **Phase 3 complete** | ⏳ Planned |
 | | | |
 | **Milestone** | | [`v0.3.0-performance`](../../tree/v0.3.0-performance) | Phase 3: Performance optimization |
@@ -475,6 +475,29 @@ git checkout main
 - ✅ Remaining hot-path heap allocation identified: `std::map` tree nodes on new price level insert (target: Day 19+)
 - ✅ Results documented in `bench/RESULTS.md`
 - ✅ Tagged `day-18`
+- ✅ **Total tests: 143 (all passing)**
+</details>
+
+<details>
+<summary><b>Day 19:</b> Realistic Benchmark Suite</summary>
+
+- ✅ Realistic order generator (`make_realistic_workload`): 60% limit orders, 20% cancels, 10% IOC, 10% amend — prices distributed ±50 ticks around mid using uniform RNG
+- ✅ `BM_SustainedThroughput`: replays 100K / 1M realistic mixed operations, reports items/second
+- ✅ `BM_CancelHeavy`: volatile-market simulation (60% adds, 35% cancels, 5% IOC)
+- ✅ `BM_DeepBook`: builds 1K / 10K unique price levels then sweeps with a market buy
+- ✅ Latency benchmark rewritten: measures under load with 2000 resting orders pre-populated
+  - 2a: limit add (no match) latency
+  - 2b: IOC match latency — qty=1 per op, large resting quantities ensure book survives 50K hits
+- ✅ `ObjectPool` storage migrated to heap (`std::unique_ptr<std::byte[]>`) to allow large capacities without stack overflow
+- ✅ Pool capacity raised from 4096 → `1 << 19` (524K) — confirmed as throughput bottleneck at 1M scale
+- ✅ All 143 tests passing after pool changes
+- ✅ Benchmark results (GCC 13.3, `-O3`, Release):
+  - Sustained 1M orders: **180k/s** ✅ (target ≥ 150k/s)
+  - Add limit p99 latency: **173 ns** ✅ (target < 10µs)
+  - IOC match p99 latency: **1,638 ns** ✅ (target < 10µs)
+  - Add limit mean: **126 ns** ✅ (target < 5µs)
+  - IOC match mean: **1,367 ns** ✅ (target < 5µs)
+- ✅ Tagged `day-19`
 - ✅ **Total tests: 143 (all passing)**
 </details>
 
