@@ -56,6 +56,7 @@ FetchContent_MakeAvailable(googlebenchmark)
 
 # Enable testing
 enable_testing()
+find_package(Threads REQUIRED)
 
 # Create a library for all source files (reusable across executables)
 add_library(ome_lib
@@ -83,8 +84,9 @@ add_executable(ome_tests
     test/test_amend_orders.cpp
     test/test_integration.cpp
     test/test_object_pool.cpp
+    test/test_spsc_queue.cpp
 )
-target_link_libraries(ome_tests ome_lib GTest::gtest_main)
+target_link_libraries(ome_tests ome_lib GTest::gtest_main Threads::Threads)
 
 # Register tests with CTest
 include(GoogleTest)
