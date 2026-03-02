@@ -4,7 +4,7 @@ A high-performance limit order matching engine implemented in modern C++17.
 
 ## Status
 
-🚧 **Work in Progress** - Phase 3 in progress: Performance Optimization (Day 19/25 complete) — `day-19`
+🚧 **Work in Progress** - Phase 4 in progress: Multithreading & Final Polish (Day 22/25 complete) — `day-22`
 
 ### Implementation Progress
 
@@ -26,27 +26,29 @@ A high-performance limit order matching engine implemented in modern C++17.
   - [x] Day 14: Order Amendments (122 tests)
   - [x] Day 15: Phase 2 Integration & Review (133 tests, ASan clean, DESIGN.md)
 
-- [x] Phase 3: Performance Optimization (Days 16-20) — in progress
+- [x] Phase 3: Performance Optimization (Days 16-20) — `v0.3.0-performance`
   - [x] Day 16: Baseline Benchmarks — `day-16`
   - [x] Day 17: Memory Pool (ObjectPool) — `day-17`
   - [x] Day 18: Hot-Path Optimization — `day-18`
   - [x] Day 19: Realistic Benchmark Suite — `day-19`
-  - [ ] Day 20: Performance Polish & Documentation
-- [ ] Phase 4: Multithreading & Final Polish (Days 21-25)
-  - [ ] Day 21: SPSC Lock-Free Queue
-  - [ ] Day 22: Producer-Consumer Threading
+  - [x] Day 20: Performance Polish & Documentation — `day-20`
+- [x] Phase 4: Multithreading & Final Polish (Days 21-25) — in progress
+  - [x] Day 21: SPSC Lock-Free Queue — `day-21`
+  - [x] Day 22: Producer-Consumer Threading — `day-22`
   - [ ] Day 23: Market Data API & FIX Parser
   - [ ] Day 24: README, CI & Documentation
   - [ ] Day 25: Final Review & Ship (v1.0.0)
 
-## Features (Planned)
+## Features
 
-- Price-time priority matching
+- Price-time priority matching (FIFO per price level)
 - Order types: Limit, Market, IOC, FOK
 - Order amendments and cancellations
-- Lock-free SPSC queue for multi-threading
+- Lock-free SPSC queue for producer-consumer threading
 - Memory pooling for zero-allocation hot path
-- Target: 150,000+ orders/second throughput
+- Asynchronous `MatchingPipeline`: input thread decoupled from matching thread
+- 172K+ orders/second sustained throughput (Release, GCC 13.3, `-O3`)
+- Benchmark suite: throughput, latency percentiles, cancel-heavy, deep-book stress
 
 ## Building
 ```bash
@@ -61,6 +63,11 @@ cd build && ctest --output-on-failure
 
 # Run main executable
 ./build/ome_main
+
+# Run full benchmark suite (Release build required)
+cmake -S . -B build/release -DCMAKE_BUILD_TYPE=Release
+cmake --build build/release --parallel
+cmake --build build/release --target bench
 ```
 
 ## Requirements
@@ -108,12 +115,12 @@ This project follows a 25-day structured implementation plan. Each day's work is
 | [`day-17`](../../tree/day-17) | Feb 25, 2026 | Memory pool (ObjectPool) | ✅ Complete |
 | [`day-18`](../../tree/day-18) | Feb 26, 2026 | Hot-path optimization | ✅ Complete |
 | [`day-19`](../../tree/day-19) | Feb 27, 2026 | Realistic benchmark suite | ✅ Complete |
-| `day-20` | Feb 28, 2026 | **Phase 3 complete** | ⏳ Planned |
+| [`day-20`](../../tree/day-20) | Feb 28, 2026 | **Phase 3 complete** — bench automation & docs | ✅ Complete |
 | | | |
 | **Milestone** | | [`v0.3.0-performance`](../../tree/v0.3.0-performance) | Phase 3: Performance optimization |
-| `day-21` | Mar 1, 2026 | SPSC lock-free queue | ⏳ Planned |
-| `day-22` | Mar 2, 2026 | Producer-consumer threading | ⏳ Planned |
-| `day-23` | Mar 3, 2026 | Market data API | ⏳ Planned |
+| [`day-21`](../../tree/day-21) | Mar 1, 2026 | SPSC lock-free queue | ✅ Complete |
+| [`day-22`](../../tree/day-22) | Mar 2, 2026 | Producer-consumer threading pipeline | ✅ Complete |
+| `day-23` | Mar 3, 2026 | Market data API & FIX parser | ⏳ Planned |
 | `day-24` | Mar 4, 2026 | CI & documentation | ⏳ Planned |
 | `day-25` | Mar 5, 2026 | **Final release** | ⏳ Planned |
 | | | |
@@ -499,6 +506,61 @@ git checkout main
   - IOC match mean: **1,367 ns** ✅ (target < 5µs)
 - ✅ Tagged `day-19`
 - ✅ **Total tests: 143 (all passing)**
+</details>
+
+<details>
+<summary><b>Day 20:</b> Performance Polish & Documentation</summary>
+
+- ✅ `bench` custom CMake target: `cmake --build build/release --target bench` runs the full suite in one command
+- ✅ `bench/plot_results.py`: parses Google Benchmark JSON output and prints a formatted result table (handles `ns`/`us`/`ms`/`s` time units)
+- ✅ `bench/RESULTS.md`: professional benchmark report template with system specs, methodology, results tables, and optimization journey
+- ✅ `docs/DESIGN.md` Phase 3 section added: ObjectPool design rationale, hot-path optimizations, benchmark methodology, performance targets
+- ✅ Tagged `day-20` and `v0.3.0-performance`
+- ✅ **Total tests: 143 (all passing)**
+- ✅ **Phase 3 complete — performance targets met and documented!** 📊
+</details>
+
+<details>
+<summary><b>Day 21:</b> SPSC Lock-Free Queue</summary>
+
+- ✅ `SpscQueue<T, Capacity>` template (`include/spsc_queue.hpp`):
+  - Ring buffer with power-of-2 capacity (bitmask modulo, no division in hot path)
+  - Head and tail indices each on their own cache line (`alignas(64) PaddedIndex`) — eliminates false sharing between producer and consumer threads
+  - `try_push()`: producer-side, wait-free — relaxed load of own index, acquire load of tail, release store of head
+  - `try_pop()`: consumer-side, wait-free — relaxed load of own index, acquire load of head, release store of tail
+  - `empty()` and `capacity()` accessors
+  - Static asserts: Capacity must be power of 2, `PaddedIndex` must be exactly 64 bytes
+- ✅ 8 new tests (`test/test_spsc_queue.cpp`):
+  - EmptyOnConstruction, SinglePushPop, FifoOrdering, CapacityLimit, WrapAround, PopFromEmptyReturnsFalse
+  - ConcurrentOneMillion: 1M items transferred between threads, checksum verified, zero loss
+  - NoItemsLost: 100K items with per-item receipt tracking
+- ✅ Tagged `day-21`
+- ✅ **Total tests: 151 (all passing)**
+- ✅ **SPSC queue complete — wait-free, false-sharing-free, ThreadSanitizer-clean!** ⚡
+</details>
+
+<details>
+<summary><b>Day 22:</b> Producer-Consumer Threading Pipeline</summary>
+
+- ✅ `OrderCommand` struct (`include/order_command.hpp`):
+  - 64-byte cache-line-aligned command for the SPSC queue
+  - Stores `Side`/`OrderType` as `uint8_t` (default `enum class` is `int` — 4 bytes — which would exceed 64 bytes)
+  - Factory methods: `make_new()`, `make_cancel()`, `make_amend()`, `make_shutdown()`
+  - `static_assert(sizeof(OrderCommand) == 64)` enforced
+- ✅ `MatchingPipeline` class (`include/matching_pipeline.hpp`):
+  - Owns `SpscQueue<OrderCommand, 65536>`, `OrderBook`, and a dedicated `MatchingThread`
+  - `start()`: spawns MatchingThread which spins on `try_pop()`
+  - `submit(cmd)`: producer-side, spins until space available — returns immediately once command is enqueued
+  - `shutdown()`: enqueues Shutdown sentinel (last in FIFO → all prior commands processed first), then joins thread
+  - All `OrderBook` callbacks fire on the MatchingThread — no locks needed on the book
+  - `processed()` counter: atomic, reflects commands handled by MatchingThread
+- ✅ 7 new tests (`test/test_pipeline.cpp`):
+  - StartAndShutdown, SingleNewOrder, TradeCallbackFires, CancelCommandProcessed, AmendCommandProcessed
+  - HundredKOrdersThroughPipeline: 100K orders, alternating buy/sell from different traders, verifies trades generated
+  - CleanShutdownNoLostOrders: 100K same-side orders, verifies all 100K `New` events received before shutdown
+- ✅ Tagged `day-22`
+- ✅ **Total tests: 158 (all passing)**
+- ✅ **Threading pipeline complete — input and matching fully decoupled!** 🧵
 </details>
 
 ---

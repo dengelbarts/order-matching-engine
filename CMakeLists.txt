@@ -85,6 +85,7 @@ add_executable(ome_tests
     test/test_integration.cpp
     test/test_object_pool.cpp
     test/test_spsc_queue.cpp
+    test/test_pipeline.cpp
 )
 target_link_libraries(ome_tests ome_lib GTest::gtest_main Threads::Threads)
 
