@@ -102,3 +102,15 @@ target_link_libraries(ome_bench_throughput ome_lib benchmark::benchmark_main)
 # Latency benchmark (standalone)
 add_executable(ome_bench_latency bench/bench_latency.cpp)
 target_link_libraries(ome_bench_latency ome_lib)
+
+add_custom_target(bench
+    COMMAND $<TARGET_FILE:ome_bench_throughput>
+        --benchmark_format=console
+        --benchmark_out_format=json
+        --benchmark_out=${PROJECT_SOURCE_DIR}/bench/throughput_results.json
+    COMMAND $<TARGET_FILE:ome_bench_latency>
+    DEPENDS ome_bench_throughput ome_bench_latency
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+    COMMENT "Running full OME benchmark suite..."
+    VERBATIM
+)
