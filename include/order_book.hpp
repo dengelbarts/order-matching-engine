@@ -74,6 +74,29 @@ class OrderBook
 
         Spread get_spread() const;
 
+        struct MarketBBO
+        {
+            BBO bid;
+            BBO ask;
+        };
+
+        MarketBBO get_bbo() const;
+
+        struct DepthLevel
+        {
+            Price price;
+            Quantity quantity;
+        };
+
+        struct Depth
+        {
+            std::vector<DepthLevel> bids;
+            std::vector<DepthLevel> asks;
+        };
+
+        Depth get_depth(size_t n) const;
+        Depth get_snapshot() const;
+
         Order *create_order(OrderId id, SymbolId sym, TraderId trader, Side side, Price price, Quantity qty, Timestamp ts, OrderType type);
 
         ObjectPool<Order, 1 << 19>::Stats get_pool_stats() const { return pool_.get_stats(); }

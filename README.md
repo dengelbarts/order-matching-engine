@@ -4,7 +4,7 @@ A high-performance limit order matching engine implemented in modern C++17.
 
 ## Status
 
-🚧 **Work in Progress** - Phase 4 in progress: Multithreading & Final Polish (Day 22/25 complete) — `day-22`
+🚧 **Work in Progress** - Phase 4 in progress: Multithreading & Final Polish (Day 23/25 complete) — `day-23`
 
 ### Implementation Progress
 
@@ -35,7 +35,7 @@ A high-performance limit order matching engine implemented in modern C++17.
 - [x] Phase 4: Multithreading & Final Polish (Days 21-25) — in progress
   - [x] Day 21: SPSC Lock-Free Queue — `day-21`
   - [x] Day 22: Producer-Consumer Threading — `day-22`
-  - [ ] Day 23: Market Data API & FIX Parser
+  - [x] Day 23: Market Data API & FIX Parser
   - [ ] Day 24: README, CI & Documentation
   - [ ] Day 25: Final Review & Ship (v1.0.0)
 
@@ -47,6 +47,8 @@ A high-performance limit order matching engine implemented in modern C++17.
 - Lock-free SPSC queue for producer-consumer threading
 - Memory pooling for zero-allocation hot path
 - Asynchronous `MatchingPipeline`: input thread decoupled from matching thread
+- Market data API: `get_bbo()`, `get_depth(n)`, `get_snapshot()`
+- FIX-like message parser: `NEW`, `CANCEL`, `AMEND` via `std::string_view` (zero-copy)
 - 172K+ orders/second sustained throughput (Release, GCC 13.3, `-O3`)
 - Benchmark suite: throughput, latency percentiles, cancel-heavy, deep-book stress
 
@@ -120,7 +122,7 @@ This project follows a 25-day structured implementation plan. Each day's work is
 | **Milestone** | | [`v0.3.0-performance`](../../tree/v0.3.0-performance) | Phase 3: Performance optimization |
 | [`day-21`](../../tree/day-21) | Mar 1, 2026 | SPSC lock-free queue | ✅ Complete |
 | [`day-22`](../../tree/day-22) | Mar 2, 2026 | Producer-consumer threading pipeline | ✅ Complete |
-| `day-23` | Mar 3, 2026 | Market data API & FIX parser | ⏳ Planned |
+| [`day-23`](../../tree/day-23) | Mar 3, 2026 | Market data API & FIX parser | ✅ Complete |
 | `day-24` | Mar 4, 2026 | CI & documentation | ⏳ Planned |
 | `day-25` | Mar 5, 2026 | **Final release** | ⏳ Planned |
 | | | |
@@ -561,6 +563,32 @@ git checkout main
 - ✅ Tagged `day-22`
 - ✅ **Total tests: 158 (all passing)**
 - ✅ **Threading pipeline complete — input and matching fully decoupled!** 🧵
+</details>
+
+<details>
+<summary><b>Day 23:</b> Market Data API & FIX Parser</summary>
+
+- ✅ Market data API added to `OrderBook`:
+  - `get_bbo()` → `MarketBBO{bid, ask}`: best bid and best ask in a single call
+  - `get_depth(n)` → `Depth{bids, asks}`: top N price levels per side, quantities aggregated per level
+  - `get_snapshot()` → `Depth{bids, asks}`: full book — all price levels on both sides
+  - Bid levels always returned descending (best first); ask levels ascending (best first)
+- ✅ FIX-like message parser (`include/fix_parser.hpp` / `src/fix_parser.cpp`):
+  - Format: `NEW|side=BUY|price=10.50|qty=100`, `CANCEL|id=42`, `AMEND|id=7|qty=200|price=11.00`
+  - `std::string_view` throughout — zero-copy traversal of the input message
+  - Supports all three message types: `NEW`, `CANCEL`, `AMEND`
+  - Strict validation: rejects unknown fields, missing required fields, zero qty/price, malformed key-value pairs
+  - Returns `ParsedMessage` with `valid` flag and `const char* error` for all failure paths
+- ✅ 15 new market data tests (`test/test_market_data.cpp`):
+  - BBO: empty book, one-sided, both sides, quantity aggregation
+  - Depth: top-N clipping, N > book size, bid/ask sort order, per-level aggregation, N=0 edge case
+  - Snapshot: empty book, full book vs `get_depth` comparison
+- ✅ 22 new FIX parser tests (`test/test_fix_parser.cpp`):
+  - Valid: NEW buy/sell, field-order independence, CANCEL, AMEND (qty only, price only, both)
+  - Invalid: empty message, unknown type, missing required fields, zero qty/price, invalid side/price/qty, unknown field, malformed key-value
+- ✅ Tagged `day-23`
+- ✅ **Total tests: 195 (all passing)**
+- ✅ **Market data API and FIX parser complete!** 📊
 </details>
 
 ---

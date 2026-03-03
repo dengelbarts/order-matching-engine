@@ -525,6 +525,51 @@ bool OrderBook::amend_order(OrderId order_id, Quantity new_qty, Price new_price)
     return true;
 }
 
+OrderBook::MarketBBO OrderBook::get_bbo() const
+{
+    return {get_best_bid(), get_best_ask()};
+}
+
+OrderBook::Depth OrderBook::get_depth(size_t n) const
+{
+    Depth depth;
+    depth.bids.reserve(n);
+    depth.asks.reserve(n);
+
+    size_t count = 0;
+    for (const auto &[price, level] : bids_)
+    {
+        if (count >= n) break;
+        depth.bids.push_back({price, level.get_total_quantity()});
+        ++count;
+    }
+
+    count = 0;
+    for (const auto &[price, level] : asks_)
+    {
+        if (count >= n) break;
+        depth.asks.push_back({price, level.get_total_quantity()});
+        ++count;
+    }
+
+    return depth;
+}
+
+OrderBook::Depth OrderBook::get_snapshot() const
+{
+    Depth depth;
+    depth.bids.reserve(bids_.size());
+    depth.asks.reserve(asks_.size());
+
+    for (const auto &[price, level] : bids_)
+        depth.bids.push_back({price, level.get_total_quantity()});
+
+    for (const auto &[price, level] : asks_)
+        depth.asks.push_back({price, level.get_total_quantity()});
+
+    return depth;
+}
+
 Order *OrderBook::create_order(OrderId id, SymbolId sym, TraderId trader, Side side, Price price, Quantity qty, Timestamp ts, OrderType type)
 {
     Order *order = pool_.allocate(id, sym, trader, side, price, qty, ts, type);

@@ -62,6 +62,7 @@ find_package(Threads REQUIRED)
 add_library(ome_lib
     src/price_level.cpp
     src/order_book.cpp
+    src/fix_parser.cpp
 )
 target_include_directories(ome_lib PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
@@ -86,6 +87,8 @@ add_executable(ome_tests
     test/test_object_pool.cpp
     test/test_spsc_queue.cpp
     test/test_pipeline.cpp
+    test/test_market_data.cpp
+    test/test_fix_parser.cpp
 )
 target_link_libraries(ome_tests ome_lib GTest::gtest_main Threads::Threads)
 
