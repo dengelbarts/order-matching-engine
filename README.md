@@ -694,6 +694,21 @@ git checkout main
 - ✅ **Market data API and FIX parser complete!** 📊
 </details>
 
+<details>
+<summary><b>Day 24:</b> README, CI & Documentation</summary>
+
+- ✅ `README.md` overhauled: Architecture section with Mermaid diagram + component table; Usage section with sample output, FIX message format, and `MatchingPipeline` snippet
+- ✅ GitHub Actions CI (`.github/workflows/ci.yml`): build + test on Ubuntu GCC, Ubuntu Clang, macOS Clang
+- ✅ `docs/DESIGN.md` completed: Phase 3 (ObjectPool, hot-path optimizations, benchmark suite + results) and Phase 4 (SpscQueue, MatchingPipeline, Market Data API, FIX parser, test coverage) sections appended — all four phases now documented with trade-off discussions
+- ✅ Bug fix: `amend_order` now runs `match_impl` after a price change — previously a price amendment crossing the spread left a permanently crossed book
+- ✅ Bug fix: `match_impl` now cancels incoming limit orders that would create a crossed book due to self-match prevention skipping a level — self-match tests updated to assert the correct no-crossed-book invariant
+- ✅ `bench/bench_soak.cpp`: duration-based endurance test (default 15 min); validates book-uncrossed invariant every 1000 ops, tracks pool health and rolling throughput
+  - 15-minute run: **0 invariant violations**, 5.87B ops, **6.5M ops/s** sustained, pool high-water 3690/524288, zero heap fallbacks
+- ✅ Tagged `day-24`
+- ✅ **Total tests: 195 (all passing)**
+- ✅ **CI, documentation, and endurance testing complete!** 🏗️
+</details>
+
 ---
 
 **Timeline:** 25 days (Feb 9 - Mar 5, 2026)
