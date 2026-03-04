@@ -168,7 +168,8 @@ std::vector<Trade> OrderBook::match(Order *order)
     return trades;
 }
 
-void OrderBook::match_impl(Order *order, std::vector<Trade> &trades)
+void OrderBook::match_impl(Order *order, std::vector<Trade> &trades,
+                           bool fire_new_on_rest)
 {
     bool is_market = (order->order_type == OrderType::Market);
     bool is_ioc = (order->order_type == OrderType::IOC);
@@ -413,7 +414,47 @@ void OrderBook::match_impl(Order *order, std::vector<Trade> &trades)
         }
         else
         {
-            add_order(order);
+            // Before resting, verify the order would not cross the book.
+            // This can happen when self-match prevention skips a level whose
+            // price crosses the incoming order's limit price.  Resting such an
+            // order would leave a permanently crossed book; cancel instead.
+            bool would_cross = false;
+            if (order->side == Side::Buy && !asks_.empty())
+                would_cross = (asks_.begin()->first <= order->price);
+            else if (order->side == Side::Sell && !bids_.empty())
+                would_cross = (bids_.begin()->first >= order->price);
+
+            if (would_cross)
+            {
+                if (on_order_event_)
+                {
+                    on_order_event_(OrderEvent{
+                        OrderEventType::Cancelled,
+                        order->order_id,
+                        order->symbol_id,
+                        order->side,
+                        original_price,
+                        initial_qty,
+                        total_filled,
+                        0,
+                        get_timestamp_ns()
+                    });
+                }
+            }
+            else if (fire_new_on_rest)
+            {
+                add_order(order);
+            }
+            else
+            {
+                // Silent re-insert after amend: order already has an Amended
+                // event; do not fire a spurious New event or count as new.
+                order_lookup_[order->order_id] = order;
+                if (order->side == Side::Buy)
+                    bids_[order->price].add_order(order);
+                else
+                    asks_[order->price].add_order(order);
+            }
         }
     }
 }
@@ -457,19 +498,37 @@ bool OrderBook::amend_order(OrderId order_id, Quantity new_qty, Price new_price)
     auto it = order_lookup_.find(order_id);
     if (it == order_lookup_.end())
         return false;
-    
+
     Order *order = it->second;
 
     if (new_qty == 0)
         return cancel_order(order_id);
-    
-    Price old_price = order->price;
-    Quantity old_qty = order->quantity;
 
-    bool loses_priority = (new_qty > old_qty) || (new_price != old_price);
+    const Price     old_price = order->price;
+    const Quantity  old_qty   = order->quantity;
+    const bool loses_priority = (new_qty > old_qty) || (new_price != old_price);
+
+    // Fire Amended event before any match/fill events that may follow.
+    if (on_order_event_)
+    {
+        on_order_event_(OrderEvent{
+            OrderEventType::Amended,
+            order->order_id,
+            order->symbol_id,
+            order->side,
+            new_price,
+            new_qty,
+            0,
+            new_qty,
+            get_timestamp_ns(),
+            old_price,
+            old_qty
+        });
+    }
 
     if (loses_priority)
     {
+        // Remove from current price level.
         if (order->side == Side::Buy)
         {
             auto bid_it = bids_.find(order->price);
@@ -491,35 +550,28 @@ bool OrderBook::amend_order(OrderId order_id, Quantity new_qty, Price new_price)
             }
         }
 
-        order->price = new_price;
-        order->quantity = new_qty;
+        order->price     = new_price;
+        order->quantity  = new_qty;
         order->timestamp = get_timestamp_ns();
 
-        if (order->side == Side::Buy)
-            bids_[order->price].add_order(order);
-        else
-            asks_[order->price].add_order(order);
+        // Remove from lookup before match_impl so there is no stale entry if
+        // the order is fully consumed.  match_impl calls add_order at the end
+        // if there is remaining quantity, which re-inserts into order_lookup_.
+        order_lookup_.erase(order_id);
+
+        scratch_trades_.clear();
+        match_impl(order, scratch_trades_, /*fire_new_on_rest=*/false);
+        scratch_trades_.clear();
+
+        // If the order is no longer in the book (fully consumed, or cancelled
+        // because resting would cross the book), free the pool slot.
+        if (!has_order(order->order_id) && pool_.is_from_pool(order))
+            pool_.deallocate(order);
     }
     else
     {
+        // Quantity decrease only: update in place, no re-matching needed.
         order->quantity = new_qty;
-    }
-
-    if (on_order_event_)
-    {
-        on_order_event_(OrderEvent{
-            OrderEventType::Amended,
-            order->order_id,
-            order->symbol_id,
-            order->side,
-            new_price,
-            new_qty,
-            0,
-            new_qty,
-            get_timestamp_ns(),
-            old_price,
-            old_qty
-        });
     }
 
     return true;

@@ -340,3 +340,196 @@ alongside the new values, enabling downstream systems to audit the change.
 ## 12. Phase 2 Tag
 
 `v0.2.0-extended` — tagged after all Phase 2 tests pass with zero ASan warnings.
+
+---
+
+## Phase 3: Performance Optimization (Days 16–20)
+
+---
+
+## 13. ObjectPool\<T, Capacity\>
+
+`ObjectPool<T, Capacity>` (`include/object_pool.hpp`) provides O(1) allocation and deallocation for `Order` objects on the matching hot path.
+
+**Design:**
+- Storage: `std::unique_ptr<std::byte[]>` heap slab of `Capacity` objects with `alignas(T)` alignment (moved to heap from stack in Day 19 to support capacities > 4K without stack overflow).
+- Free-list: intrusive stack of slot indices — `allocate()` pops an index and calls placement `new`; `deallocate()` calls `ptr->~T()` then pushes the index back.
+- Heap fallback: when the pool is exhausted, falls back to `new`/`delete` with a `stderr` warning. This keeps the system functional and makes exhaustion observable without aborting.
+- `is_from_pool(ptr)`: pointer bounds check against slab start/end — used in `OrderBook` to guard `deallocate()` calls and avoid freeing stack-allocated test orders.
+
+| Operation      | Complexity | Notes                     |
+|----------------|------------|---------------------------|
+| allocate()     | O(1)       | Stack pop + placement new |
+| deallocate()   | O(1)       | Destructor + stack push   |
+| is_from_pool() | O(1)       | Pointer comparison        |
+
+**Why not `std::pmr::pool_resource`?**
+PMR is C++17 but adds virtual dispatch and a `memory_resource*` pointer to every allocation. The custom pool is zero-overhead on the hot path and exposes exactly the stats needed for benchmarking.
+
+---
+
+## 14. Hot-Path Optimizations (Day 18)
+
+Three targeted changes to eliminate allocations on the matching hot path:
+
+### 14.1 Scratch vector
+
+`OrderBook` holds a `std::vector<Trade> scratch_trades_` member. Instead of allocating a new vector per `match()` call, the matching loop reuses this vector (cleared at entry). On the optimised pool path (`create_order()`), zero heap allocations occur in steady state.
+
+### 14.2 Branch hints
+
+Self-match prevention is the only conditional on the inner matching loop. Since self-trades are rare in production, `LIKELY`/`UNLIKELY` macros (`__builtin_expect`) guide the branch predictor toward the fast path.
+
+### 14.3 Pool integration in OrderBook
+
+`create_order(args...)` allocates from the pool, calls `match()`, and returns the resting pointer or `nullptr` if the order was fully consumed. `cancel_order()` and `match()` return consumed orders via `pool_.deallocate()` guarded by `pool_.is_from_pool()`.
+
+---
+
+## 15. Benchmark Suite (Days 16–19)
+
+All benchmarks use Google Benchmark (v1.8.3 via FetchContent). The `bench` custom CMake target runs the full suite:
+
+```bash
+cmake -S . -B build/release -DCMAKE_BUILD_TYPE=Release
+cmake --build build/release --parallel
+cmake --build build/release --target bench
+```
+
+| Benchmark | What it measures |
+|---|---|
+| `BM_ThroughputAddOnly` | Raw add-order throughput, no matching |
+| `BM_ThroughputWithPool` | Full optimised path: pool alloc + match + dealloc |
+| `BM_SustainedThroughput` | 60% limit / 20% cancel / 10% IOC / 10% amend |
+| `BM_CancelHeavy` | Volatile-market: 60% add / 35% cancel / 5% IOC |
+| `BM_DeepBook` | Build 1K–10K price levels then sweep with market buy |
+| `BM_Latency_AddLimit` | Per-op add latency under load; p50/p95/p99/p99.9 |
+| `BM_Latency_IOCMatch` | Per-op IOC match latency under load |
+
+**Results (GCC 13.3, `-O3`, Release, Ubuntu 22.04):**
+
+| Metric | Result | Target |
+|---|---|---|
+| Sustained throughput (1M orders) | 180K orders/s | ≥ 150K/s |
+| Add limit mean latency | 126 ns | < 5µs |
+| Add limit p99 latency | 173 ns | < 10µs |
+| IOC match mean latency | 1,367 ns | < 5µs |
+| IOC match p99 latency | 1,638 ns | < 10µs |
+
+---
+
+## 16. Phase 3 Tag
+
+`v0.3.0-performance` — tagged after all performance targets are met and documented.
+
+---
+
+## Phase 4: Multithreading & Final Polish (Days 21–23)
+
+---
+
+## 17. SpscQueue\<T, Capacity\> (Day 21)
+
+`SpscQueue<T, Capacity>` (`include/spsc_queue.hpp`) is a wait-free, lock-free single-producer single-consumer ring buffer.
+
+**Design:**
+
+```
+Producer thread          Consumer thread
+    │                         │
+    ▼                         ▼
+[head_ cache line]      [tail_ cache line]
+    │                         │
+    └────── shared ring ───────┘
+```
+
+- Ring buffer of `Capacity` slots; power-of-2 enforced by `static_assert`.
+- Bitmask modulo: `index & (Capacity - 1)` — no division in the hot path.
+- `PaddedIndex`: each index occupies a full 64-byte cache line (`alignas(64)` + padding). This eliminates false sharing between the producer (writes `head_`) and consumer (writes `tail_`).
+- `try_push()`: producer relaxed-reads its own head, acquire-reads tail, release-writes new head.
+- `try_pop()`: consumer relaxed-reads its own tail, acquire-reads head, release-writes new tail.
+
+**Why acquire/release and not seq_cst?**
+`seq_cst` adds a full memory fence on x86, which is unnecessary here because producer and consumer only synchronise with each other. Acquire/release gives the correct happens-before guarantee at lower cost.
+
+---
+
+## 18. MatchingPipeline (Day 22)
+
+`MatchingPipeline` (`include/matching_pipeline.hpp`) decouples order submission from matching execution.
+
+**Structure:**
+
+```
+Producer thread(s)        MatchingThread
+      │                        │
+  submit(cmd)             try_pop(cmd)
+      │                        │
+      └─► SpscQueue ──────────►│
+                           OrderBook::add/cancel/amend
+                           Event callbacks fire here
+```
+
+- `OrderCommand` (`include/order_command.hpp`): exactly 64 bytes (`static_assert` enforced). `Side`/`OrderType` stored as `uint8_t` — default `enum class` is `int` (4 bytes) which would push the struct past 64 bytes. Factory methods: `make_new()`, `make_cancel()`, `make_amend()`, `make_shutdown()`.
+- `start()`: spawns the MatchingThread, which busy-spins on `try_pop()`.
+- `submit(cmd)`: producer-side; spins until queue has space, then enqueues. Returns as soon as the command is in the queue.
+- `shutdown()`: enqueues a Shutdown sentinel (last in FIFO, so all prior commands are processed first), then joins the MatchingThread.
+- `processed()`: atomic counter incremented by the MatchingThread after each command — used in tests to synchronise without locks.
+
+**Thread safety:** all `OrderBook` mutations happen exclusively on the MatchingThread. Event callbacks fire on the MatchingThread; callers should not capture shared mutable state in callbacks without external synchronisation.
+
+---
+
+## 19. Market Data API (Day 23)
+
+Three read-only queries added to `OrderBook`:
+
+| Method | Return type | Description |
+|---|---|---|
+| `get_bbo()` | `MarketBBO{bid, ask}` | Best bid and best ask in one call |
+| `get_depth(n)` | `Depth{bids, asks}` | Top N price levels per side |
+| `get_snapshot()` | `Depth{bids, asks}` | Full book — all price levels |
+
+Bid levels are always returned **descending** (best first); ask levels always **ascending** (best first). `get_snapshot()` is equivalent to `get_depth(SIZE_MAX)`.
+
+---
+
+## 20. FIX-like Message Parser (Day 23)
+
+`FIXParser` (`include/fix_parser.hpp`, `src/fix_parser.cpp`) parses a text protocol inspired by FIX tag=value encoding.
+
+**Wire format:**
+
+```
+NEW|side=BUY|price=10.50|qty=100
+NEW|side=SELL|qty=200|price=9.75
+CANCEL|id=42
+AMEND|id=7|qty=150|price=10.25
+```
+
+Fields within a message type may appear in any order.
+
+**Implementation:**
+- All parameters are `std::string_view` — the parser never copies the input buffer, avoiding heap allocation on the hot path.
+- Returns `ParsedMessage` with `bool valid` and `const char* error` for every failure path.
+- Strict validation: unknown fields, missing required fields, zero qty/price, and malformed key=value pairs all set `valid = false`.
+
+**Why `string_view` over `std::string`?**
+FIX messages arrive as a contiguous byte buffer from the network layer. Creating `std::string` copies adds heap allocation on every parse. `string_view` provides the same interface with zero-copy semantics.
+
+---
+
+## 21. Phase 4 Test Coverage
+
+| File | Tests | Coverage |
+|---|---|---|
+| `test_spsc_queue.cpp` | 8 | Empty, single push/pop, FIFO, capacity limit, wrap-around, concurrent 1M items |
+| `test_pipeline.cpp` | 7 | Start/shutdown, single order, trade callback, cancel, amend, 100K throughput, clean shutdown |
+| `test_market_data.cpp` | 15 | BBO empty/one-sided/both sides, depth top-N, sort order, aggregation, snapshot |
+| `test_fix_parser.cpp` | 22 | Valid NEW/CANCEL/AMEND, field-order independence, all invalid input cases |
+
+---
+
+## 22. Final Release Tag
+
+`v1.0.0` — tagged on Day 25 after all 195 tests pass across Debug, Release, ASan, TSan, and UBSan builds with zero warnings.

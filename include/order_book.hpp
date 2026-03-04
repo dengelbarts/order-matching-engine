@@ -33,7 +33,8 @@ class OrderBook
         std::vector<Trade> scratch_trades_;
 
         bool can_fill(const Order *order) const;
-        void match_impl(Order *order, std::vector<Trade> &out);
+        void match_impl(Order *order, std::vector<Trade> &out,
+                        bool fire_new_on_rest = true);
 
     public:
         OrderBook() = default;

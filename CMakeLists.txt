@@ -109,6 +109,10 @@ target_link_libraries(ome_bench_throughput ome_lib benchmark::benchmark_main)
 add_executable(ome_bench_latency bench/bench_latency.cpp)
 target_link_libraries(ome_bench_latency ome_lib)
 
+# Soak test (standalone, duration-based)
+add_executable(ome_bench_soak bench/bench_soak.cpp)
+target_link_libraries(ome_bench_soak ome_lib)
+
 add_custom_target(bench
     COMMAND $<TARGET_FILE:ome_bench_throughput>
         --benchmark_format=console

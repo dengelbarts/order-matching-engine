@@ -238,14 +238,18 @@ TEST_F(MatchingTest, SelfMatchPreventionBuy)
     book.add_order(sell1);
     book.add_order(sell2);
 
+    // Buy from the same trader as the resting sells.  Self-match prevention
+    // skips the entire ask level.  Resting the buy would create a crossed book
+    // (bid@10.00 >= ask@10.00), so the engine cancels the incoming order.
     Order *buy = create_order(Side::Buy, to_price(10.00), 100, 100);
     auto trades = book.match(buy);
 
     EXPECT_EQ(trades.size(), 0);
 
-    EXPECT_TRUE(book.has_order(buy->order_id));
-    EXPECT_EQ(book.get_order(buy->order_id)->quantity, 100);
+    // Buy must NOT be in the book — it was cancelled to prevent a crossing.
+    EXPECT_FALSE(book.has_order(buy->order_id));
 
+    // Resting sell orders are untouched.
     EXPECT_TRUE(book.has_order(sell1->order_id));
     EXPECT_TRUE(book.has_order(sell2->order_id));
     EXPECT_EQ(sell1->quantity, 50);
@@ -259,14 +263,17 @@ TEST_F(MatchingTest, SelfMatchPreventionSell)
     book.add_order(buy1);
     book.add_order(buy2);
 
+    // Sell from the same trader as the resting buys.  Resting would create a
+    // crossed book (bid@10.00 >= ask@10.00), so the engine cancels the order.
     Order *sell = create_order(Side::Sell, to_price(10.00), 100, 100);
     auto trades = book.match(sell);
 
     EXPECT_EQ(trades.size(), 0);
 
-    EXPECT_TRUE(book.has_order(sell->order_id));
-    EXPECT_EQ(book.get_order(sell->order_id)->quantity, 100);
+    // Sell must NOT be in the book.
+    EXPECT_FALSE(book.has_order(sell->order_id));
 
+    // Resting buy orders are untouched.
     EXPECT_TRUE(book.has_order(buy1->order_id));
     EXPECT_TRUE(book.has_order(buy2->order_id));
     EXPECT_EQ(buy1->quantity, 50);
@@ -298,14 +305,18 @@ TEST_F(MatchingTest, SelfMatchPreventionMultiLevel)
     book.add_order(sell2);
     book.add_order(sell3);
 
+    // Buy@12 from the same trader as all three resting sells.  Self-match
+    // prevention skips every ask level.  Resting the buy would create a
+    // crossed book (best bid $12 > best ask $9), so the engine cancels it.
     Order *buy = create_order(Side::Buy, to_price(12.00), 150, 100);
     auto trades = book.match(buy);
 
     EXPECT_EQ(trades.size(), 0);
 
-    EXPECT_TRUE(book.has_order(buy->order_id));
-    EXPECT_EQ(book.get_order(buy->order_id)->quantity, 150);
+    // Buy must NOT be in the book.
+    EXPECT_FALSE(book.has_order(buy->order_id));
 
+    // All resting sell orders are untouched.
     EXPECT_TRUE(book.has_order(sell1->order_id));
     EXPECT_TRUE(book.has_order(sell2->order_id));
     EXPECT_TRUE(book.has_order(sell3->order_id));

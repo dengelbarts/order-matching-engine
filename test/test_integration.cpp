@@ -169,6 +169,7 @@ TEST_F(IntegrationTest, FOKFullFillAcrossTwoLevels)
 
 TEST_F(IntegrationTest, AmendThenMatch)
 {
+    // A resting sell and a resting buy that doesn't cross.
     Order *sell = make(Side::Sell, to_price(10.00), 100, 10);
     book.add_order(sell);
 
@@ -177,13 +178,18 @@ TEST_F(IntegrationTest, AmendThenMatch)
     EXPECT_EQ(r1.size(), 0);
     EXPECT_TRUE(book.has_order(buy->order_id));
 
+    // Amending the buy to a price that crosses the resting sell must match
+    // immediately — the engine must never leave a crossed book.
+    int trades_fired = 0;
+    book.set_trade_callback([&](const TradeEvent &) { trades_fired++; });
     book.amend_order(buy->order_id, 100, to_price(10.00));
 
-    Order *sell2 = make(Side::Sell, to_price(10.00), 100, 30);
-    auto r2 = book.match(sell2);
-    ASSERT_EQ(r2.size(), 1);
-    EXPECT_EQ(r2[0].quantity, 100);
+    // Both orders should have been consumed by the amend-triggered match.
+    EXPECT_EQ(trades_fired, 1);
     EXPECT_FALSE(book.has_order(buy->order_id));
+    EXPECT_FALSE(book.has_order(sell->order_id));
+    EXPECT_FALSE(book.get_best_bid().valid);
+    EXPECT_FALSE(book.get_best_ask().valid);
 }
 
 TEST_F(IntegrationTest, AmendQtyDownKeepsPriorityInMatch)

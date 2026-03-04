@@ -4,7 +4,7 @@ A high-performance limit order matching engine implemented in modern C++17.
 
 ## Status
 
-🚧 **Work in Progress** - Phase 4 in progress: Multithreading & Final Polish (Day 23/25 complete) — `day-23`
+🚧 **Work in Progress** - Phase 4 in progress: Multithreading & Final Polish (Day 24/25 complete) — `day-24`
 
 ### Implementation Progress
 
@@ -36,7 +36,7 @@ A high-performance limit order matching engine implemented in modern C++17.
   - [x] Day 21: SPSC Lock-Free Queue — `day-21`
   - [x] Day 22: Producer-Consumer Threading — `day-22`
   - [x] Day 23: Market Data API & FIX Parser
-  - [ ] Day 24: README, CI & Documentation
+  - [x] Day 24: README, CI & Documentation
   - [ ] Day 25: Final Review & Ship (v1.0.0)
 
 ## Features
@@ -51,6 +51,44 @@ A high-performance limit order matching engine implemented in modern C++17.
 - FIX-like message parser: `NEW`, `CANCEL`, `AMEND` via `std::string_view` (zero-copy)
 - 172K+ orders/second sustained throughput (Release, GCC 13.3, `-O3`)
 - Benchmark suite: throughput, latency percentiles, cancel-heavy, deep-book stress
+
+## Architecture
+
+```mermaid
+flowchart TD
+    A[Producer Thread] -->|FIX-like message| B[FIX Parser]
+    B -->|ParsedMessage| C[OrderCommand factory]
+    C -->|OrderCommand| D["SpscQueue&lt;OrderCommand, 65536&gt;"]
+    D -->|try_pop| E[Matching Thread]
+    E --> F[OrderBook]
+
+    subgraph OrderBook
+        F1["bids: map&lt;Price, PriceLevel, greater&gt;"]
+        F2["asks: map&lt;Price, PriceLevel, less&gt;"]
+        F3["order_lookup: unordered_map&lt;OrderId, Order*&gt;"]
+        F4["ObjectPool&lt;Order&gt;"]
+    end
+
+    F --> G[Event Callbacks]
+    G --> G1[TradeEvent]
+    G --> G2[OrderEvent]
+
+    F --> H[Market Data API]
+    H --> H1["get_bbo()"]
+    H --> H2["get_depth(n)"]
+    H --> H3["get_snapshot()"]
+```
+
+| Component | File | Role |
+|-----------|------|------|
+| `Price` / `Order` | `price.hpp`, `order.hpp` | Fixed-point price, 64-byte cache-aligned order struct |
+| `PriceLevel` | `price_level.hpp` | FIFO deque per price point |
+| `OrderBook` | `order_book.hpp` | Matching engine, BBO, amendments, event callbacks |
+| `ObjectPool<T>` | `object_pool.hpp` | Pre-allocated slab; O(1) alloc/free on the hot path |
+| `SpscQueue<T,N>` | `spsc_queue.hpp` | Wait-free ring buffer; one cache line per index |
+| `OrderCommand` | `order_command.hpp` | 64-byte command struct passed through the queue |
+| `MatchingPipeline` | `matching_pipeline.hpp` | Owns queue + matching thread; decouples producers |
+| `FIX parser` | `fix_parser.hpp` | Zero-copy `string_view` parser for NEW/CANCEL/AMEND |
 
 ## Building
 ```bash
@@ -70,6 +108,71 @@ cd build && ctest --output-on-failure
 cmake -S . -B build/release -DCMAKE_BUILD_TYPE=Release
 cmake --build build/release --parallel
 cmake --build build/release --target bench
+```
+
+## Usage
+
+### Running the demo
+
+```bash
+./build/ome_main
+```
+
+Sample output:
+
+```
+=== Order Matching Engine v0.1.0 - Phase 1 Demo ===
+
+--- Adding resting orders ---
+[ORDER] OrderEvent{type=New, id=1, side=Sell, price=10.5000, orig=100, filled=0, rem=100}
+[ORDER] OrderEvent{type=New, id=2, side=Sell, price=10.2500, orig=75, filled=0, rem=75}
+[ORDER] OrderEvent{type=New, id=3, side=Sell, price=10.0000, orig=50, filled=0, rem=50}
+[ORDER] OrderEvent{type=New, id=4, side=Buy, price=9.7500, orig=80, filled=0, rem=80}
+[ORDER] OrderEvent{type=New, id=5, side=Buy, price=9.5000, orig=60, filled=0, rem=60}
+
+BBO: bid 9.7500 x 80 | ask 10.0000 x 50
+Spread: 0.2500
+
+--- Aggressive buy (qty 120 @ 10.50) <<<
+[ORDER] OrderEvent{type=Filled, id=3, side=Sell, price=10.0000, orig=50, filled=50, rem=0}
+[TRADE] TradeEvent{id=1, buy=6, sell=3, price=10.0000, qty=50}
+[ORDER] OrderEvent{type=PartialFill, id=2, side=Sell, price=10.2500, orig=75, filled=70, rem=5}
+[TRADE] TradeEvent{id=2, buy=6, sell=2, price=10.2500, qty=70}
+[ORDER] OrderEvent{type=Filled, id=6, side=Buy, price=10.5000, orig=120, filled=120, rem=0}
+
+After sweep:
+Best bid: 9.7500 x 80
+Best ask: 10.2500 x 5
+
+--- Stats ---
+Total orders added to book : 5
+Total trades executed      : 2
+Total volume traded        : 120
+```
+
+### FIX-like message format
+
+```
+NEW|side=BUY|price=10.50|qty=100
+NEW|side=SELL|qty=200|price=9.75
+CANCEL|id=42
+AMEND|id=7|qty=150|price=10.25
+```
+
+Fields may appear in any order. The parser returns a `ParsedMessage` with a `bool valid` flag and `const char* error` on failure.
+
+### Using the MatchingPipeline
+
+```cpp
+MatchingPipeline pipeline;
+pipeline.start();
+
+// Any producer thread:
+pipeline.submit(OrderCommand::make_new(1, Side::Buy, to_price(10.50), 100, 1, 1));
+pipeline.submit(OrderCommand::make_cancel(42));
+
+// Drains all queued commands before joining the matching thread:
+pipeline.shutdown();
 ```
 
 ## Requirements
@@ -123,7 +226,7 @@ This project follows a 25-day structured implementation plan. Each day's work is
 | [`day-21`](../../tree/day-21) | Mar 1, 2026 | SPSC lock-free queue | ✅ Complete |
 | [`day-22`](../../tree/day-22) | Mar 2, 2026 | Producer-consumer threading pipeline | ✅ Complete |
 | [`day-23`](../../tree/day-23) | Mar 3, 2026 | Market data API & FIX parser | ✅ Complete |
-| `day-24` | Mar 4, 2026 | CI & documentation | ⏳ Planned |
+| [`day-24`](../../tree/day-24) | Mar 4, 2026 | CI & documentation | ✅ Complete |
 | `day-25` | Mar 5, 2026 | **Final release** | ⏳ Planned |
 | | | |
 | **Milestone** | | [`v1.0.0`](../../tree/v1.0.0) | 🚀 Production-ready order matching engine |
