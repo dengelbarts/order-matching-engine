@@ -1,46 +1,41 @@
-#include <gtest/gtest.h>
 #include "../include/order_book.hpp"
 #include "../include/trade.hpp"
+
 #include <memory>
 #include <vector>
 
-class IOCOrderTest : public ::testing::Test
-{
-    protected:
-        OrderBook book;
-        std::vector<std::unique_ptr<Order>> orders;
-        SymbolId symbol = 1;
+#include <gtest/gtest.h>
 
-        Order *create_order(Side side, Price price, Quantity qty, TraderId trader = 100, OrderType type = OrderType::Limit)
+class IOCOrderTest : public ::testing::Test {
+protected:
+    OrderBook book;
+    std::vector<std::unique_ptr<Order>> orders;
+    SymbolId symbol = 1;
 
-        {
-            auto order = std::make_unique<Order>(
-                generate_order_id(),
-                symbol,
-                trader,
-                side,
-                price,
-                qty,
-                get_timestamp_ns(),
-                type
-            );
-            Order *ptr = order.get();
-            orders.push_back(std::move(order));
-            return ptr;
-        }
+    Order* create_order(Side side,
+                        Price price,
+                        Quantity qty,
+                        TraderId trader = 100,
+                        OrderType type = OrderType::Limit)
 
-        Order *create_ioc(Side side, Price price, Quantity qty, TraderId trader = 100)
-        {
-            return create_order(side, price, qty, trader, OrderType::IOC);
-        }
+    {
+        auto order = std::make_unique<Order>(
+            generate_order_id(), symbol, trader, side, price, qty, get_timestamp_ns(), type);
+        Order* ptr = order.get();
+        orders.push_back(std::move(order));
+        return ptr;
+    }
+
+    Order* create_ioc(Side side, Price price, Quantity qty, TraderId trader = 100) {
+        return create_order(side, price, qty, trader, OrderType::IOC);
+    }
 };
 
-TEST_F(IOCOrderTest, IOCBuyFullFill)
-{
-    Order *sell = create_order(Side::Sell, to_price(10.00), 100, 200);
+TEST_F(IOCOrderTest, IOCBuyFullFill) {
+    Order* sell = create_order(Side::Sell, to_price(10.00), 100, 200);
     book.add_order(sell);
 
-    Order *buy = create_ioc(Side::Buy, to_price(10.50), 100);
+    Order* buy = create_ioc(Side::Buy, to_price(10.50), 100);
     auto trades = book.match(buy);
 
     ASSERT_EQ(trades.size(), 1);
@@ -52,12 +47,11 @@ TEST_F(IOCOrderTest, IOCBuyFullFill)
     EXPECT_FALSE(book.get_best_ask().valid);
 }
 
-TEST_F(IOCOrderTest, IOCBuyPartialFill)
-{
-    Order *sell = create_order(Side::Sell, to_price(10.00), 50, 200);
+TEST_F(IOCOrderTest, IOCBuyPartialFill) {
+    Order* sell = create_order(Side::Sell, to_price(10.00), 50, 200);
     book.add_order(sell);
 
-    Order *buy = create_ioc(Side::Buy, to_price(10.50), 100);
+    Order* buy = create_ioc(Side::Buy, to_price(10.50), 100);
     auto trades = book.match(buy);
 
     ASSERT_EQ(trades.size(), 1);
@@ -68,12 +62,11 @@ TEST_F(IOCOrderTest, IOCBuyPartialFill)
     EXPECT_FALSE(book.get_best_ask().valid);
 }
 
-TEST_F(IOCOrderTest, IOCBuyNoFillPriceMismatch)
-{
-    Order *sell = create_order(Side::Sell, to_price(10.00), 50, 200);
+TEST_F(IOCOrderTest, IOCBuyNoFillPriceMismatch) {
+    Order* sell = create_order(Side::Sell, to_price(10.00), 50, 200);
     book.add_order(sell);
 
-    Order *buy = create_ioc(Side::Buy, to_price(9.50), 100);
+    Order* buy = create_ioc(Side::Buy, to_price(9.50), 100);
     auto trades = book.match(buy);
 
     EXPECT_EQ(trades.size(), 0);
@@ -83,9 +76,8 @@ TEST_F(IOCOrderTest, IOCBuyNoFillPriceMismatch)
     EXPECT_FALSE(book.get_best_bid().valid);
 }
 
-TEST_F(IOCOrderTest, IOCBuyEmptyBook)
-{
-    Order *buy = create_ioc(Side::Buy, to_price(10.00), 100);
+TEST_F(IOCOrderTest, IOCBuyEmptyBook) {
+    Order* buy = create_ioc(Side::Buy, to_price(10.00), 100);
     auto trades = book.match(buy);
 
     EXPECT_EQ(trades.size(), 0);
@@ -93,14 +85,13 @@ TEST_F(IOCOrderTest, IOCBuyEmptyBook)
     EXPECT_FALSE(book.get_best_bid().valid);
 }
 
-TEST_F(IOCOrderTest, IOCBuyRespectsLimitPrice)
-{
-    Order *sell1 = create_order(Side::Sell, to_price(10.00), 50, 200);
-    Order *sell2 = create_order(Side::Sell, to_price(11.00), 50, 300);
+TEST_F(IOCOrderTest, IOCBuyRespectsLimitPrice) {
+    Order* sell1 = create_order(Side::Sell, to_price(10.00), 50, 200);
+    Order* sell2 = create_order(Side::Sell, to_price(11.00), 50, 300);
     book.add_order(sell1);
     book.add_order(sell2);
 
-    Order *buy = create_ioc(Side::Buy, to_price(10.50), 100);
+    Order* buy = create_ioc(Side::Buy, to_price(10.50), 100);
     auto trades = book.match(buy);
 
     ASSERT_EQ(trades.size(), 1);
@@ -111,12 +102,11 @@ TEST_F(IOCOrderTest, IOCBuyRespectsLimitPrice)
     EXPECT_FALSE(book.has_order(buy->order_id));
 }
 
-TEST_F(IOCOrderTest, IOCSellFullFill)
-{
-    Order *buy = create_order(Side::Buy, to_price(10.00), 100, 200);
+TEST_F(IOCOrderTest, IOCSellFullFill) {
+    Order* buy = create_order(Side::Buy, to_price(10.00), 100, 200);
     book.add_order(buy);
 
-    Order *sell = create_ioc(Side::Sell, to_price(9.50), 100);
+    Order* sell = create_ioc(Side::Sell, to_price(9.50), 100);
     auto trades = book.match(sell);
 
     ASSERT_EQ(trades.size(), 1);
@@ -128,12 +118,11 @@ TEST_F(IOCOrderTest, IOCSellFullFill)
     EXPECT_FALSE(book.get_best_bid().valid);
 }
 
-TEST_F(IOCOrderTest, IOCSellPartialFill)
-{
-    Order *buy = create_order(Side::Buy, to_price(10.00), 50, 200);
+TEST_F(IOCOrderTest, IOCSellPartialFill) {
+    Order* buy = create_order(Side::Buy, to_price(10.00), 50, 200);
     book.add_order(buy);
 
-    Order *sell = create_ioc(Side::Sell, to_price(9.50), 100);
+    Order* sell = create_ioc(Side::Sell, to_price(9.50), 100);
     auto trades = book.match(sell);
 
     ASSERT_EQ(trades.size(), 1);
@@ -144,12 +133,11 @@ TEST_F(IOCOrderTest, IOCSellPartialFill)
     EXPECT_FALSE(book.get_best_bid().valid);
 }
 
-TEST_F(IOCOrderTest, IOCFiresCancelEventOnNoFill)
-{
+TEST_F(IOCOrderTest, IOCFiresCancelEventOnNoFill) {
     std::vector<OrderEvent> events;
-    book.set_order_callback([&](const OrderEvent &e) { events.push_back(e); });
+    book.set_order_callback([&](const OrderEvent& e) { events.push_back(e); });
 
-    Order *buy = create_ioc(Side::Buy, to_price(9.00), 100);
+    Order* buy = create_ioc(Side::Buy, to_price(9.00), 100);
     book.match(buy);
 
     ASSERT_FALSE(events.empty());
@@ -158,19 +146,18 @@ TEST_F(IOCOrderTest, IOCFiresCancelEventOnNoFill)
     EXPECT_EQ(events.back().remaining_qty, 0);
 }
 
-TEST_F(IOCOrderTest, IOCFiresPartialFillThenCancelEvents)
-{
+TEST_F(IOCOrderTest, IOCFiresPartialFillThenCancelEvents) {
     std::vector<OrderEvent> events;
-    book.set_order_callback([&](const OrderEvent &e) { events.push_back(e); });
+    book.set_order_callback([&](const OrderEvent& e) { events.push_back(e); });
 
-    Order *sell = create_order(Side::Sell, to_price(10.00), 50, 200);
+    Order* sell = create_order(Side::Sell, to_price(10.00), 50, 200);
     book.add_order(sell);
 
-    Order *buy = create_ioc(Side::Buy, to_price(10.50), 100);
+    Order* buy = create_ioc(Side::Buy, to_price(10.50), 100);
     book.match(buy);
 
     std::vector<OrderEvent> ioc_events;
-    for (const auto &e : events)
+    for (const auto& e : events)
         if (e.order_id == buy->order_id)
             ioc_events.push_back(e);
 

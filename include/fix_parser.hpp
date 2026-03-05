@@ -1,13 +1,13 @@
 #pragma once
 
-#include <string_view>
 #include "order.hpp"
 #include "order_types.hpp"
 
+#include <string_view>
+
 enum class FIXMsgType { New, Cancel, Amend, Unknown };
 
-struct ParsedMessage
-{
+struct ParsedMessage {
     FIXMsgType type = FIXMsgType::Unknown;
 
     OrderId id = 0;
@@ -21,7 +21,7 @@ struct ParsedMessage
     bool has_qty = false;
 
     bool valid = false;
-    const char *error = nullptr;
+    const char* error = nullptr;
 };
 
 ParsedMessage parse_fix_message(std::string_view msg);

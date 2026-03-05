@@ -1,45 +1,39 @@
-#include <gtest/gtest.h>
 #include "../include/order_book.hpp"
 #include "../include/trade.hpp"
+
 #include <memory>
 #include <vector>
 
-class MarketOrderTest : public ::testing::Test
-{
-    protected:
-        OrderBook book;
-        std::vector<std::unique_ptr<Order>> orders;
-        SymbolId symbol = 1;
+#include <gtest/gtest.h>
 
-        Order *create_order(Side side, Price price, Quantity qty, TraderId trader = 100, OrderType type = OrderType::Limit)
-        {
-            auto order = std::make_unique<Order>(
-                generate_order_id(),
-                symbol,
-                trader,
-                side,
-                price,
-                qty,
-                get_timestamp_ns(),
-                type
-            );
-            Order *ptr = order.get();
-            orders.push_back(std::move(order));
-            return ptr;
-        }
+class MarketOrderTest : public ::testing::Test {
+protected:
+    OrderBook book;
+    std::vector<std::unique_ptr<Order>> orders;
+    SymbolId symbol = 1;
 
-        Order *create_market(Side side, Quantity qty, TraderId trader = 100)
-        {
-            return create_order(side, 0, qty, trader, OrderType::Market);
-        }
+    Order* create_order(Side side,
+                        Price price,
+                        Quantity qty,
+                        TraderId trader = 100,
+                        OrderType type = OrderType::Limit) {
+        auto order = std::make_unique<Order>(
+            generate_order_id(), symbol, trader, side, price, qty, get_timestamp_ns(), type);
+        Order* ptr = order.get();
+        orders.push_back(std::move(order));
+        return ptr;
+    }
+
+    Order* create_market(Side side, Quantity qty, TraderId trader = 100) {
+        return create_order(side, 0, qty, trader, OrderType::Market);
+    }
 };
 
-TEST_F(MarketOrderTest, MarketBuyFullFill)
-{
-    Order *sell = create_order(Side::Sell, to_price(10.00), 100, 200);
+TEST_F(MarketOrderTest, MarketBuyFullFill) {
+    Order* sell = create_order(Side::Sell, to_price(10.00), 100, 200);
     book.add_order(sell);
 
-    Order *buy = create_market(Side::Buy, 100);
+    Order* buy = create_market(Side::Buy, 100);
     auto trades = book.match(buy);
 
     ASSERT_EQ(trades.size(), 1);
@@ -51,14 +45,13 @@ TEST_F(MarketOrderTest, MarketBuyFullFill)
     EXPECT_FALSE(book.get_best_ask().valid);
 }
 
-TEST_F(MarketOrderTest, MarketBuyMultiLevel)
-{
-    Order *sell1 = create_order(Side::Sell, to_price(10.00), 50, 200);
-    Order *sell2 = create_order(Side::Sell, to_price(11.00), 50, 300);
+TEST_F(MarketOrderTest, MarketBuyMultiLevel) {
+    Order* sell1 = create_order(Side::Sell, to_price(10.00), 50, 200);
+    Order* sell2 = create_order(Side::Sell, to_price(11.00), 50, 300);
     book.add_order(sell1);
     book.add_order(sell2);
 
-    Order *buy = create_market(Side::Buy, 100);
+    Order* buy = create_market(Side::Buy, 100);
     auto trades = book.match(buy);
 
     ASSERT_EQ(trades.size(), 2);
@@ -73,12 +66,11 @@ TEST_F(MarketOrderTest, MarketBuyMultiLevel)
     EXPECT_FALSE(book.get_best_ask().valid);
 }
 
-TEST_F(MarketOrderTest, MarketBuyPartialFillRemainderCancelled)
-{
-    Order *sell = create_order(Side::Sell, to_price(10.00), 50, 200);
+TEST_F(MarketOrderTest, MarketBuyPartialFillRemainderCancelled) {
+    Order* sell = create_order(Side::Sell, to_price(10.00), 50, 200);
     book.add_order(sell);
 
-    Order *buy = create_market(Side::Buy, 100);
+    Order* buy = create_market(Side::Buy, 100);
     auto trades = book.match(buy);
 
     ASSERT_EQ(trades.size(), 1);
@@ -89,9 +81,8 @@ TEST_F(MarketOrderTest, MarketBuyPartialFillRemainderCancelled)
     EXPECT_FALSE(book.get_best_bid().valid);
 }
 
-TEST_F(MarketOrderTest, MarketBuyEmptyBook)
-{
-    Order *buy = create_market(Side::Buy, 100);
+TEST_F(MarketOrderTest, MarketBuyEmptyBook) {
+    Order* buy = create_market(Side::Buy, 100);
     auto trades = book.match(buy);
 
     EXPECT_EQ(trades.size(), 0);
@@ -99,12 +90,11 @@ TEST_F(MarketOrderTest, MarketBuyEmptyBook)
     EXPECT_FALSE(book.get_best_bid().valid);
 }
 
-TEST_F(MarketOrderTest, MarketSellFullFill)
-{
-    Order *buy = create_order(Side::Buy, to_price(10.00), 100, 200);
+TEST_F(MarketOrderTest, MarketSellFullFill) {
+    Order* buy = create_order(Side::Buy, to_price(10.00), 100, 200);
     book.add_order(buy);
 
-    Order *sell = create_market(Side::Sell, 100);
+    Order* sell = create_market(Side::Sell, 100);
     auto trades = book.match(sell);
 
     ASSERT_EQ(trades.size(), 1);
@@ -116,12 +106,11 @@ TEST_F(MarketOrderTest, MarketSellFullFill)
     EXPECT_FALSE(book.get_best_bid().valid);
 }
 
-TEST_F(MarketOrderTest, MarketSellPartialFillRemainderCancelled)
-{
-    Order *buy = create_order(Side::Buy, to_price(10.00), 50, 200);
+TEST_F(MarketOrderTest, MarketSellPartialFillRemainderCancelled) {
+    Order* buy = create_order(Side::Buy, to_price(10.00), 50, 200);
     book.add_order(buy);
 
-    Order *sell = create_market(Side::Sell, 100);
+    Order* sell = create_market(Side::Sell, 100);
     auto trades = book.match(sell);
 
     ASSERT_EQ(trades.size(), 1);
@@ -132,9 +121,8 @@ TEST_F(MarketOrderTest, MarketSellPartialFillRemainderCancelled)
     EXPECT_FALSE(book.get_best_ask().valid);
 }
 
-TEST_F(MarketOrderTest, MarketSellEmptyBook)
-{
-    Order *sell = create_market(Side::Sell, 100);
+TEST_F(MarketOrderTest, MarketSellEmptyBook) {
+    Order* sell = create_market(Side::Sell, 100);
     auto trades = book.match(sell);
 
     EXPECT_EQ(trades.size(), 0);
@@ -142,12 +130,11 @@ TEST_F(MarketOrderTest, MarketSellEmptyBook)
     EXPECT_FALSE(book.get_best_ask().valid);
 }
 
-TEST_F(MarketOrderTest, MarketOrderFiresCancelEventOnEmptyBook)
-{
+TEST_F(MarketOrderTest, MarketOrderFiresCancelEventOnEmptyBook) {
     std::vector<OrderEvent> events;
-    book.set_order_callback([&](const OrderEvent &e) { events.push_back(e); });
+    book.set_order_callback([&](const OrderEvent& e) { events.push_back(e); });
 
-    Order *buy = create_market(Side::Buy, 100);
+    Order* buy = create_market(Side::Buy, 100);
     book.match(buy);
 
     ASSERT_FALSE(events.empty());

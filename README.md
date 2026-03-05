@@ -2,9 +2,11 @@
 
 A high-performance limit order matching engine implemented in modern C++17.
 
+[![CI](https://github.com/dengelbarts/c-_order_matching_engine/actions/workflows/ci.yml/badge.svg)](https://github.com/dengelbarts/c-_order_matching_engine/actions/workflows/ci.yml)
+
 ## Status
 
-🚧 **Work in Progress** - Phase 4 in progress: Multithreading & Final Polish (Day 24/25 complete) — `day-24`
+✅ **v1.0.0** — Production-ready. All 25 days complete. — `v1.0.0`
 
 ### Implementation Progress
 
@@ -32,12 +34,12 @@ A high-performance limit order matching engine implemented in modern C++17.
   - [x] Day 18: Hot-Path Optimization — `day-18`
   - [x] Day 19: Realistic Benchmark Suite — `day-19`
   - [x] Day 20: Performance Polish & Documentation — `day-20`
-- [x] Phase 4: Multithreading & Final Polish (Days 21-25) — in progress
+- [x] Phase 4: Multithreading & Final Polish (Days 21-25) — `v1.0.0`
   - [x] Day 21: SPSC Lock-Free Queue — `day-21`
   - [x] Day 22: Producer-Consumer Threading — `day-22`
-  - [x] Day 23: Market Data API & FIX Parser
-  - [x] Day 24: README, CI & Documentation
-  - [ ] Day 25: Final Review & Ship (v1.0.0)
+  - [x] Day 23: Market Data API & FIX Parser — `day-23`
+  - [x] Day 24: README, CI & Documentation — `day-24`
+  - [x] Day 25: Final Review & Ship — `v1.0.0`
 
 ## Features
 
@@ -227,7 +229,7 @@ This project follows a 25-day structured implementation plan. Each day's work is
 | [`day-22`](../../tree/day-22) | Mar 2, 2026 | Producer-consumer threading pipeline | ✅ Complete |
 | [`day-23`](../../tree/day-23) | Mar 3, 2026 | Market data API & FIX parser | ✅ Complete |
 | [`day-24`](../../tree/day-24) | Mar 4, 2026 | CI & documentation | ✅ Complete |
-| `day-25` | Mar 5, 2026 | **Final release** | ⏳ Planned |
+| [`day-25`](../../tree/day-25) | Mar 5, 2026 | **Final release** | ✅ Complete |
 | | | |
 | **Milestone** | | [`v1.0.0`](../../tree/v1.0.0) | 🚀 Production-ready order matching engine |
 

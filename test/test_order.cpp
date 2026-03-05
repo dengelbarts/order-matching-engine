@@ -1,11 +1,12 @@
-#include <gtest/gtest.h>
+#include "../include/order.hpp"
+
+#include <cstddef>
 #include <thread>
 #include <vector>
-#include "../include/order.hpp"
-#include <cstddef>
 
-TEST(OrderTest, BasicConstruction)
-{
+#include <gtest/gtest.h>
+
+TEST(OrderTest, BasicConstruction) {
     OrderId id = generate_order_id();
     SymbolId symbol = 1;
     TraderId trader = 100;
@@ -27,8 +28,7 @@ TEST(OrderTest, BasicConstruction)
     EXPECT_EQ(order.order_type, OrderType::Limit);
 }
 
-TEST(OderTest, DefaultConstruction)
-{
+TEST(OderTest, DefaultConstruction) {
     Order order;
 
     EXPECT_EQ(order.order_id, 0);
@@ -40,14 +40,12 @@ TEST(OderTest, DefaultConstruction)
     EXPECT_EQ(order.order_type, OrderType::Limit);
 }
 
-TEST(OrdertTest, SizeConstraint)
-{
+TEST(OrdertTest, SizeConstraint) {
     EXPECT_LE(sizeof(Order), 64);
     std::cout << "Order size: " << sizeof(Order) << " bytes" << std::endl;
 }
 
-TEST(OrderIdTest, Uniqueness)
-{
+TEST(OrderIdTest, Uniqueness) {
     OrderId id1 = generate_order_id();
     OrderId id2 = generate_order_id();
     OrderId id3 = generate_order_id();
@@ -57,8 +55,7 @@ TEST(OrderIdTest, Uniqueness)
     EXPECT_NE(id1, id3);
 }
 
-TEST(OrderIdTest, MonotonicallyIncreasing)
-{
+TEST(OrderIdTest, MonotonicallyIncreasing) {
     OrderId id1 = generate_order_id();
     OrderId id2 = generate_order_id();
     OrderId id3 = generate_order_id();
@@ -67,25 +64,21 @@ TEST(OrderIdTest, MonotonicallyIncreasing)
     EXPECT_LT(id2, id3);
 }
 
-TEST(OrderIdTest, GenerateMany)
-{
+TEST(OrderIdTest, GenerateMany) {
     constexpr int N = 10000;
     std::vector<OrderId> ids;
     ids.reserve(N);
 
-    for (int i = 0; i < N; ++i)
-    {
+    for (int i = 0; i < N; ++i) {
         ids.push_back(generate_order_id());
     }
 
-    for (std::size_t i = 0; i < ids.size() - 1; ++i)
-    {
+    for (std::size_t i = 0; i < ids.size() - 1; ++i) {
         EXPECT_LT(ids[i], ids[i + 1]);
     }
 }
 
-TEST(TimestampTest, MonotonicallyIncreasing)
-{
+TEST(TimestampTest, MonotonicallyIncreasing) {
     Timestamp ts1 = get_timestamp_ns();
     Timestamp ts2 = get_timestamp_ns();
     Timestamp ts3 = get_timestamp_ns();
@@ -94,26 +87,22 @@ TEST(TimestampTest, MonotonicallyIncreasing)
     EXPECT_LE(ts2, ts3);
 }
 
-TEST(TimestampTest, ReasonableValues)
-{
+TEST(TimestampTest, ReasonableValues) {
     Timestamp ts = get_timestamp_ns();
 
     EXPECT_GT(ts, 0);
     EXPECT_GT(ts, 1000000ULL);
 }
 
-TEST(OrderTest, OutputOperator)
-{
-    Order order(
-        generate_order_id(),
-        1,
-        100,
-        Side::Buy,
-        to_price(10.50),
-        100,
-        get_timestamp_ns(),
-        OrderType::Limit
-    );
+TEST(OrderTest, OutputOperator) {
+    Order order(generate_order_id(),
+                1,
+                100,
+                Side::Buy,
+                to_price(10.50),
+                100,
+                get_timestamp_ns(),
+                OrderType::Limit);
 
     std::stringstream ss;
     ss << order;
@@ -125,34 +114,28 @@ TEST(OrderTest, OutputOperator)
     EXPECT_NE(output.find("Limit"), std::string::npos);
 }
 
-TEST(OrderIdTest, ThreadSafety)
-{
+TEST(OrderIdTest, ThreadSafety) {
     constexpr int NUM_THREADS = 10;
     constexpr int IDS_PER_THREAD = 1000;
 
     std::vector<std::vector<OrderId>> thread_results(NUM_THREADS);
     std::vector<std::thread> threads;
 
-    for (int i = 0; i < NUM_THREADS; ++i)
-    {
-        threads.emplace_back([&thread_results, i]()
-        {
+    for (int i = 0; i < NUM_THREADS; ++i) {
+        threads.emplace_back([&thread_results, i]() {
             thread_results[i].reserve(IDS_PER_THREAD);
-            for (int j = 0; j < IDS_PER_THREAD; ++j)
-            {
+            for (int j = 0; j < IDS_PER_THREAD; ++j) {
                 thread_results[i].push_back(generate_order_id());
             }
         });
     }
 
-    for (auto &thread : threads)
-    {
+    for (auto& thread : threads) {
         thread.join();
     }
 
     std::vector<OrderId> all_ids;
-    for (const auto &thread_ids : thread_results)
-    {
+    for (const auto& thread_ids : thread_results) {
         all_ids.insert(all_ids.end(), thread_ids.begin(), thread_ids.end());
     }
 
@@ -162,4 +145,3 @@ TEST(OrderIdTest, ThreadSafety)
     EXPECT_EQ(it, all_ids.end()) << "Found duplicate OrderId: " << *it;
     EXPECT_EQ(all_ids.size(), NUM_THREADS * IDS_PER_THREAD);
 }
-

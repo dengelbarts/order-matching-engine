@@ -4,13 +4,12 @@
 
 enum class CommandType : uint8_t { NewOrder, Cancel, Amend, Shutdown };
 
-struct alignas(64) OrderCommand
-{
+struct alignas(64) OrderCommand {
     CommandType type = CommandType::Shutdown;
     uint8_t side_raw = 0;
     uint8_t otype_raw = 0;
     uint8_t _pad[5] = {};
-    
+
     OrderId order_id = 0;
     SymbolId symbol_id = 0;
     TraderId trader_id = 0;
@@ -23,8 +22,14 @@ struct alignas(64) OrderCommand
     Side side() const { return static_cast<Side>(side_raw); }
     OrderType order_type() const { return static_cast<OrderType>(otype_raw); }
 
-    static OrderCommand make_new(OrderId id, SymbolId sym, TraderId tid, Side s, Price p, Quantity q, Timestamp ts, OrderType t)
-    {
+    static OrderCommand make_new(OrderId id,
+                                 SymbolId sym,
+                                 TraderId tid,
+                                 Side s,
+                                 Price p,
+                                 Quantity q,
+                                 Timestamp ts,
+                                 OrderType t) {
         OrderCommand cmd;
         cmd.type = CommandType::NewOrder;
         cmd.side_raw = static_cast<uint8_t>(s);
@@ -38,16 +43,14 @@ struct alignas(64) OrderCommand
         return cmd;
     }
 
-    static OrderCommand make_cancel(OrderId id)
-    {
+    static OrderCommand make_cancel(OrderId id) {
         OrderCommand cmd;
         cmd.type = CommandType::Cancel;
         cmd.order_id = id;
         return cmd;
     }
 
-    static OrderCommand make_amend(OrderId id, Price np, Quantity nq)
-    {
+    static OrderCommand make_amend(OrderId id, Price np, Quantity nq) {
         OrderCommand cmd;
         cmd.type = CommandType::Amend;
         cmd.order_id = id;

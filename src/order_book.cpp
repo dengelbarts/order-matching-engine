@@ -8,84 +8,67 @@
 #define UNLIKELY(x) (x)
 #endif
 
-void OrderBook::set_trade_callback(std::function<void(const TradeEvent &)> cb)
-{
+void OrderBook::set_trade_callback(std::function<void(const TradeEvent&)> cb) {
     on_trade_ = std::move(cb);
 }
 
-void OrderBook::set_order_callback(std::function<void(const OrderEvent &)> cb)
-{
+void OrderBook::set_order_callback(std::function<void(const OrderEvent&)> cb) {
     on_order_event_ = std::move(cb);
 }
 
-void OrderBook::add_order(Order *order)
-{
+void OrderBook::add_order(Order* order) {
     if (!order)
         return;
-    
+
     stats_.total_orders++;
     order_lookup_[order->order_id] = order;
 
-    if (order->side == Side::Buy)
-    {
+    if (order->side == Side::Buy) {
         bids_[order->price].add_order(order);
-    }
-    else
-    {
+    } else {
         asks_[order->price].add_order(order);
     }
-    if (on_order_event_)
-    {
-        on_order_event_(OrderEvent{
-            OrderEventType::New,
-            order->order_id,
-            order->symbol_id,
-            order->side,
-            order->price,
-            order->quantity,
-            0,
-            order->quantity,
-            get_timestamp_ns()
-        });
+    if (on_order_event_) {
+        on_order_event_(OrderEvent{OrderEventType::New,
+                                   order->order_id,
+                                   order->symbol_id,
+                                   order->side,
+                                   order->price,
+                                   order->quantity,
+                                   0,
+                                   order->quantity,
+                                   get_timestamp_ns()});
     }
 }
 
-bool OrderBook::has_order(OrderId order_id) const
-{
+bool OrderBook::has_order(OrderId order_id) const {
     return order_lookup_.find(order_id) != order_lookup_.end();
 }
 
-Order *OrderBook::get_order(OrderId order_id) const
-{
+Order* OrderBook::get_order(OrderId order_id) const {
     auto it = order_lookup_.find(order_id);
     if (it != order_lookup_.end())
-        return it ->second;
+        return it->second;
     return nullptr;
 }
 
-bool OrderBook::cancel_order(OrderId order_id)
-{
+bool OrderBook::cancel_order(OrderId order_id) {
     auto lookup_it = order_lookup_.find(order_id);
     if (lookup_it == order_lookup_.end())
         return false;
-    
-    Order *order = lookup_it->second;
 
-    if (order->side == Side::Buy)
-    {
+    Order* order = lookup_it->second;
+
+    if (order->side == Side::Buy) {
         auto bid_it = bids_.find(order->price);
-        if (bid_it != bids_.end())
-        {
+        if (bid_it != bids_.end()) {
             bid_it->second.remove_order(order_id);
             if (bid_it->second.is_empty())
                 bids_.erase(bid_it);
         }
-    }
-    else
-    {
+    } else {
         auto ask_it = asks_.find(order->price);
-        if (ask_it != asks_.end())
-        {
+        if (ask_it != asks_.end()) {
             ask_it->second.remove_order(order_id);
 
             if (ask_it->second.is_empty())
@@ -93,19 +76,16 @@ bool OrderBook::cancel_order(OrderId order_id)
         }
     }
 
-    if (on_order_event_)
-    {
-        on_order_event_(OrderEvent{
-            OrderEventType::Cancelled,
-            order->order_id,
-            order->symbol_id,
-            order->side,
-            order->price,
-            order->quantity,
-            0,
-            0,
-            get_timestamp_ns()
-        });
+    if (on_order_event_) {
+        on_order_event_(OrderEvent{OrderEventType::Cancelled,
+                                   order->order_id,
+                                   order->symbol_id,
+                                   order->side,
+                                   order->price,
+                                   order->quantity,
+                                   0,
+                                   0,
+                                   get_timestamp_ns()});
     }
 
     order_lookup_.erase(lookup_it);
@@ -116,61 +96,41 @@ bool OrderBook::cancel_order(OrderId order_id)
     return true;
 }
 
-OrderBook::BBO OrderBook::get_best_bid() const
-{
+OrderBook::BBO OrderBook::get_best_bid() const {
     if (bids_.empty())
         return {0, 0, false};
-    
-    const auto &best = bids_.begin();
 
-    return
-    {
-        best->first,
-        best->second.get_total_quantity(),
-        true
-    };
+    const auto& best = bids_.begin();
+
+    return {best->first, best->second.get_total_quantity(), true};
 }
 
-OrderBook::BBO OrderBook::get_best_ask() const
-{
+OrderBook::BBO OrderBook::get_best_ask() const {
     if (asks_.empty())
         return {0, 0, false};
 
-    const auto &best = asks_.begin();
+    const auto& best = asks_.begin();
 
-    return
-    {
-        best->first,
-        best->second.get_total_quantity(),
-        true
-    };
+    return {best->first, best->second.get_total_quantity(), true};
 }
 
-OrderBook::Spread OrderBook::get_spread() const
-{
+OrderBook::Spread OrderBook::get_spread() const {
     auto best_bid = get_best_bid();
     auto best_ask = get_best_ask();
 
     if (!best_bid.valid || !best_ask.valid)
         return {0, false};
 
-    return
-    {
-        best_ask.price - best_bid.price,
-        true
-    };
+    return {best_ask.price - best_bid.price, true};
 }
 
-std::vector<Trade> OrderBook::match(Order *order)
-{
+std::vector<Trade> OrderBook::match(Order* order) {
     std::vector<Trade> trades;
     match_impl(order, trades);
     return trades;
 }
 
-void OrderBook::match_impl(Order *order, std::vector<Trade> &trades,
-                           bool fire_new_on_rest)
-{
+void OrderBook::match_impl(Order* order, std::vector<Trade>& trades, bool fire_new_on_rest) {
     bool is_market = (order->order_type == OrderType::Market);
     bool is_ioc = (order->order_type == OrderType::IOC);
     bool is_fok = (order->order_type == OrderType::FOK);
@@ -178,28 +138,23 @@ void OrderBook::match_impl(Order *order, std::vector<Trade> &trades,
     if (order->order_type != OrderType::Limit && !is_market && !is_ioc && !is_fok)
         return;
 
-    if (is_fok && !can_fill(order))
-    {
-        if (on_order_event_)
-        {
-            on_order_event_(OrderEvent{
-                OrderEventType::Cancelled,
-                order->order_id,
-                order->symbol_id,
-                order->side,
-                order->price,
-                order->quantity,
-                0,
-                0,
-                get_timestamp_ns()
-            });
+    if (is_fok && !can_fill(order)) {
+        if (on_order_event_) {
+            on_order_event_(OrderEvent{OrderEventType::Cancelled,
+                                       order->order_id,
+                                       order->symbol_id,
+                                       order->side,
+                                       order->price,
+                                       order->quantity,
+                                       0,
+                                       0,
+                                       get_timestamp_ns()});
         }
         return;
     }
 
     Price original_price = order->price;
-    if (is_market)
-    {
+    if (is_market) {
         if (order->side == Side::Buy)
             order->price = std::numeric_limits<Price>::max();
         else
@@ -210,75 +165,65 @@ void OrderBook::match_impl(Order *order, std::vector<Trade> &trades,
     Quantity initial_qty = order->quantity;
     Quantity remaining_qty = order->quantity;
 
-    if (is_buy)
-    {
+    if (is_buy) {
         auto it = asks_.begin();
 
-        while (it != asks_.end() && remaining_qty > 0)
-        {
+        while (it != asks_.end() && remaining_qty > 0) {
             Price level_price = it->first;
-            
+
             if (order->price < level_price)
                 break;
-            
-            PriceLevel &level = it->second;
 
-            while (!level.is_empty() && remaining_qty > 0)
-            {
-                Order *resting_order = level.front();
+            PriceLevel& level = it->second;
+
+            while (!level.is_empty() && remaining_qty > 0) {
+                Order* resting_order = level.front();
 
                 if (UNLIKELY(resting_order->trader_id == order->trader_id))
                     break;
-                
+
                 Quantity resting_orig_qty = resting_order->quantity;
                 Quantity trade_qty = std::min(remaining_qty, resting_order->quantity);
 
-                Trade trade(
-                    generate_trade_id(),
-                    order->order_id,
-                    resting_order->order_id,
-                    level_price,
-                    trade_qty,
-                    get_timestamp_ns()
-                );
+                Trade trade(generate_trade_id(),
+                            order->order_id,
+                            resting_order->order_id,
+                            level_price,
+                            trade_qty,
+                            get_timestamp_ns());
                 trades.push_back(trade);
 
                 remaining_qty -= trade_qty;
                 resting_order->quantity -= trade_qty;
 
-                if (on_trade_)
-                {
-                    on_trade_(TradeEvent{
-                        trade.trade_id,
-                        trade.buy_order_id,
-                        trade.sell_order_id,
-                        trade.price,
-                        trade.quantity,
-                        trade.timestamp
-                    });
+                if (on_trade_) {
+                    on_trade_(TradeEvent{trade.trade_id,
+                                         trade.buy_order_id,
+                                         trade.sell_order_id,
+                                         trade.price,
+                                         trade.quantity,
+                                         trade.timestamp});
                 }
 
-                if (on_order_event_)
-                {
-                    OrderEventType evt_type = (resting_order->quantity == 0) ? OrderEventType::Filled : OrderEventType::PartialFill;
-                    on_order_event_(OrderEvent{
-                        evt_type,
-                        resting_order->order_id,
-                        resting_order->symbol_id,
-                        resting_order->side,
-                        resting_order->price,
-                        resting_orig_qty,
-                        trade_qty,
-                        resting_order->quantity,
-                        get_timestamp_ns()
-                    });
+                if (on_order_event_) {
+                    OrderEventType evt_type = (resting_order->quantity == 0)
+                                                  ? OrderEventType::Filled
+                                                  : OrderEventType::PartialFill;
+                    on_order_event_(OrderEvent{evt_type,
+                                               resting_order->order_id,
+                                               resting_order->symbol_id,
+                                               resting_order->side,
+                                               resting_order->price,
+                                               resting_orig_qty,
+                                               trade_qty,
+                                               resting_order->quantity,
+                                               get_timestamp_ns()});
                 }
 
                 stats_.total_trades++;
                 stats_.total_volume += trade_qty;
 
-                if (resting_order->quantity == 0)
-                {
+                if (resting_order->quantity == 0) {
                     order_lookup_.erase(resting_order->order_id);
                     level.remove_order(resting_order->order_id);
                     if (pool_.is_from_pool(resting_order))
@@ -290,23 +235,19 @@ void OrderBook::match_impl(Order *order, std::vector<Trade> &trades,
             else
                 ++it;
         }
-    }
-    else
-    {
+    } else {
         auto it = bids_.begin();
 
-        while (it != bids_.end() && remaining_qty > 0)
-        {
+        while (it != bids_.end() && remaining_qty > 0) {
             Price level_price = it->first;
-            
+
             if (order->price > level_price)
                 break;
 
-            PriceLevel &level = it->second;
+            PriceLevel& level = it->second;
 
-            while (!level.is_empty() && remaining_qty > 0)
-            {
-                Order *resting_order = level.front();
+            while (!level.is_empty() && remaining_qty > 0) {
+                Order* resting_order = level.front();
 
                 if (UNLIKELY(resting_order->trader_id == order->trader_id))
                     break;
@@ -314,52 +255,45 @@ void OrderBook::match_impl(Order *order, std::vector<Trade> &trades,
                 Quantity resting_orig_qty = resting_order->quantity;
                 Quantity trade_qty = std::min(remaining_qty, resting_order->quantity);
 
-                Trade trade(
-                    generate_trade_id(),
-                    resting_order->order_id,
-                    order->order_id,
-                    level_price,
-                    trade_qty,
-                    get_timestamp_ns()
-                );
+                Trade trade(generate_trade_id(),
+                            resting_order->order_id,
+                            order->order_id,
+                            level_price,
+                            trade_qty,
+                            get_timestamp_ns());
                 trades.push_back(trade);
 
                 remaining_qty -= trade_qty;
                 resting_order->quantity -= trade_qty;
 
-                if (on_trade_)
-                {
-                    on_trade_(TradeEvent{
-                        trade.trade_id,
-                        trade.buy_order_id,
-                        trade.sell_order_id,
-                        trade.price,
-                        trade.quantity,
-                        trade.timestamp
-                    });
+                if (on_trade_) {
+                    on_trade_(TradeEvent{trade.trade_id,
+                                         trade.buy_order_id,
+                                         trade.sell_order_id,
+                                         trade.price,
+                                         trade.quantity,
+                                         trade.timestamp});
                 }
 
-                if (on_order_event_)
-                {
-                    OrderEventType evt_type = (resting_order->quantity == 0) ? OrderEventType::Filled : OrderEventType::PartialFill;
-                    on_order_event_(OrderEvent{
-                        evt_type,
-                        resting_order->order_id,
-                        resting_order->symbol_id,
-                        resting_order->side,
-                        resting_order->price,
-                        resting_orig_qty,
-                        trade_qty,
-                        resting_order->quantity,
-                        get_timestamp_ns()
-                    });
+                if (on_order_event_) {
+                    OrderEventType evt_type = (resting_order->quantity == 0)
+                                                  ? OrderEventType::Filled
+                                                  : OrderEventType::PartialFill;
+                    on_order_event_(OrderEvent{evt_type,
+                                               resting_order->order_id,
+                                               resting_order->symbol_id,
+                                               resting_order->side,
+                                               resting_order->price,
+                                               resting_orig_qty,
+                                               trade_qty,
+                                               resting_order->quantity,
+                                               get_timestamp_ns()});
                 }
 
                 stats_.total_trades++;
                 stats_.total_volume += trade_qty;
 
-                if (resting_order->quantity == 0)
-                {
+                if (resting_order->quantity == 0) {
                     order_lookup_.erase(resting_order->order_id);
                     level.remove_order(resting_order->order_id);
                     if (pool_.is_from_pool(resting_order))
@@ -376,44 +310,35 @@ void OrderBook::match_impl(Order *order, std::vector<Trade> &trades,
     order->quantity = remaining_qty;
 
     Quantity total_filled = initial_qty - remaining_qty;
-    if (total_filled > 0 && on_order_event_)
-    {
-        OrderEventType evt_type = (remaining_qty == 0) ? OrderEventType::Filled : OrderEventType::PartialFill;
-        on_order_event_(OrderEvent{
-            evt_type,
-            order->order_id,
-            order->symbol_id,
-            order->side,
-            original_price,
-            initial_qty,
-            total_filled,
-            remaining_qty,
-            get_timestamp_ns()
-        });
+    if (total_filled > 0 && on_order_event_) {
+        OrderEventType evt_type =
+            (remaining_qty == 0) ? OrderEventType::Filled : OrderEventType::PartialFill;
+        on_order_event_(OrderEvent{evt_type,
+                                   order->order_id,
+                                   order->symbol_id,
+                                   order->side,
+                                   original_price,
+                                   initial_qty,
+                                   total_filled,
+                                   remaining_qty,
+                                   get_timestamp_ns()});
     }
 
-    if (remaining_qty > 0)
-    {
-        if (is_market || is_ioc || is_fok)
-        {
+    if (remaining_qty > 0) {
+        if (is_market || is_ioc || is_fok) {
             order->price = original_price;
-            if (on_order_event_)
-            {
-                on_order_event_(OrderEvent{
-                    OrderEventType::Cancelled,
-                    order->order_id,
-                    order->symbol_id,
-                    order->side,
-                    order->price,
-                    initial_qty,
-                    total_filled,
-                    0,
-                    get_timestamp_ns()
-                });
+            if (on_order_event_) {
+                on_order_event_(OrderEvent{OrderEventType::Cancelled,
+                                           order->order_id,
+                                           order->symbol_id,
+                                           order->side,
+                                           order->price,
+                                           initial_qty,
+                                           total_filled,
+                                           0,
+                                           get_timestamp_ns()});
             }
-        }
-        else
-        {
+        } else {
             // Before resting, verify the order would not cross the book.
             // This can happen when self-match prevention skips a level whose
             // price crosses the incoming order's limit price.  Resting such an
@@ -424,29 +349,21 @@ void OrderBook::match_impl(Order *order, std::vector<Trade> &trades,
             else if (order->side == Side::Sell && !bids_.empty())
                 would_cross = (bids_.begin()->first >= order->price);
 
-            if (would_cross)
-            {
-                if (on_order_event_)
-                {
-                    on_order_event_(OrderEvent{
-                        OrderEventType::Cancelled,
-                        order->order_id,
-                        order->symbol_id,
-                        order->side,
-                        original_price,
-                        initial_qty,
-                        total_filled,
-                        0,
-                        get_timestamp_ns()
-                    });
+            if (would_cross) {
+                if (on_order_event_) {
+                    on_order_event_(OrderEvent{OrderEventType::Cancelled,
+                                               order->order_id,
+                                               order->symbol_id,
+                                               order->side,
+                                               original_price,
+                                               initial_qty,
+                                               total_filled,
+                                               0,
+                                               get_timestamp_ns()});
                 }
-            }
-            else if (fire_new_on_rest)
-            {
+            } else if (fire_new_on_rest) {
                 add_order(order);
-            }
-            else
-            {
+            } else {
                 // Silent re-insert after amend: order already has an Amended
                 // event; do not fire a spurious New event or count as new.
                 order_lookup_[order->order_id] = order;
@@ -459,30 +376,24 @@ void OrderBook::match_impl(Order *order, std::vector<Trade> &trades,
     }
 }
 
-bool OrderBook::can_fill(const Order *order) const
-{
+bool OrderBook::can_fill(const Order* order) const {
     Quantity needed = order->quantity;
 
-    if (order->side == Side::Buy)
-    {
-        for (const auto &[level_price, level] : asks_)
-        {
+    if (order->side == Side::Buy) {
+        for (const auto& [level_price, level] : asks_) {
             if (order->price < level_price)
                 break;
-            
+
             Quantity available = level.get_total_quantity();
             if (available >= needed)
                 return true;
             needed -= available;
         }
-    }
-    else
-    {
-        for (const auto &[level_price, level] : bids_)
-        {
+    } else {
+        for (const auto& [level_price, level] : bids_) {
             if (order->price > level_price)
                 break;
-            
+
             Quantity available = level.get_total_quantity();
             if (available >= needed)
                 return true;
@@ -493,65 +404,55 @@ bool OrderBook::can_fill(const Order *order) const
     return false;
 }
 
-bool OrderBook::amend_order(OrderId order_id, Quantity new_qty, Price new_price)
-{
+bool OrderBook::amend_order(OrderId order_id, Quantity new_qty, Price new_price) {
     auto it = order_lookup_.find(order_id);
     if (it == order_lookup_.end())
         return false;
 
-    Order *order = it->second;
+    Order* order = it->second;
 
     if (new_qty == 0)
         return cancel_order(order_id);
 
-    const Price     old_price = order->price;
-    const Quantity  old_qty   = order->quantity;
+    const Price old_price = order->price;
+    const Quantity old_qty = order->quantity;
     const bool loses_priority = (new_qty > old_qty) || (new_price != old_price);
 
     // Fire Amended event before any match/fill events that may follow.
-    if (on_order_event_)
-    {
-        on_order_event_(OrderEvent{
-            OrderEventType::Amended,
-            order->order_id,
-            order->symbol_id,
-            order->side,
-            new_price,
-            new_qty,
-            0,
-            new_qty,
-            get_timestamp_ns(),
-            old_price,
-            old_qty
-        });
+    if (on_order_event_) {
+        on_order_event_(OrderEvent{OrderEventType::Amended,
+                                   order->order_id,
+                                   order->symbol_id,
+                                   order->side,
+                                   new_price,
+                                   new_qty,
+                                   0,
+                                   new_qty,
+                                   get_timestamp_ns(),
+                                   old_price,
+                                   old_qty});
     }
 
-    if (loses_priority)
-    {
+    if (loses_priority) {
         // Remove from current price level.
-        if (order->side == Side::Buy)
-        {
+        if (order->side == Side::Buy) {
             auto bid_it = bids_.find(order->price);
-            if (bid_it != bids_.end())
-            {
+            if (bid_it != bids_.end()) {
                 bid_it->second.remove_order(order_id);
                 if (bid_it->second.is_empty())
                     bids_.erase(bid_it);
             }
-        }
-        else
-        {
+        } else {
             auto ask_it = asks_.find(order->price);
-            if (ask_it != asks_.end())
-            {
+            if (ask_it != asks_.end()) {
                 ask_it->second.remove_order(order_id);
                 if (ask_it->second.is_empty())
                     asks_.erase(ask_it);
             }
         }
 
-        order->price     = new_price;
-        order->quantity  = new_qty;
+        order->price = new_price;
+        order->quantity = new_qty;
         order->timestamp = get_timestamp_ns();
 
         // Remove from lookup before match_impl so there is no stale entry if
@@ -567,9 +468,7 @@ bool OrderBook::amend_order(OrderId order_id, Quantity new_qty, Price new_price)
         // because resting would cross the book), free the pool slot.
         if (!has_order(order->order_id) && pool_.is_from_pool(order))
             pool_.deallocate(order);
-    }
-    else
-    {
+    } else {
         // Quantity decrease only: update in place, no re-matching needed.
         order->quantity = new_qty;
     }
@@ -577,29 +476,27 @@ bool OrderBook::amend_order(OrderId order_id, Quantity new_qty, Price new_price)
     return true;
 }
 
-OrderBook::MarketBBO OrderBook::get_bbo() const
-{
+OrderBook::MarketBBO OrderBook::get_bbo() const {
     return {get_best_bid(), get_best_ask()};
 }
 
-OrderBook::Depth OrderBook::get_depth(size_t n) const
-{
+OrderBook::Depth OrderBook::get_depth(size_t n) const {
     Depth depth;
     depth.bids.reserve(n);
     depth.asks.reserve(n);
 
     size_t count = 0;
-    for (const auto &[price, level] : bids_)
-    {
-        if (count >= n) break;
+    for (const auto& [price, level] : bids_) {
+        if (count >= n)
+            break;
         depth.bids.push_back({price, level.get_total_quantity()});
         ++count;
     }
 
     count = 0;
-    for (const auto &[price, level] : asks_)
-    {
-        if (count >= n) break;
+    for (const auto& [price, level] : asks_) {
+        if (count >= n)
+            break;
         depth.asks.push_back({price, level.get_total_quantity()});
         ++count;
     }
@@ -607,28 +504,32 @@ OrderBook::Depth OrderBook::get_depth(size_t n) const
     return depth;
 }
 
-OrderBook::Depth OrderBook::get_snapshot() const
-{
+OrderBook::Depth OrderBook::get_snapshot() const {
     Depth depth;
     depth.bids.reserve(bids_.size());
     depth.asks.reserve(asks_.size());
 
-    for (const auto &[price, level] : bids_)
+    for (const auto& [price, level] : bids_)
         depth.bids.push_back({price, level.get_total_quantity()});
 
-    for (const auto &[price, level] : asks_)
+    for (const auto& [price, level] : asks_)
         depth.asks.push_back({price, level.get_total_quantity()});
 
     return depth;
 }
 
-Order *OrderBook::create_order(OrderId id, SymbolId sym, TraderId trader, Side side, Price price, Quantity qty, Timestamp ts, OrderType type)
-{
-    Order *order = pool_.allocate(id, sym, trader, side, price, qty, ts, type);
+Order* OrderBook::create_order(OrderId id,
+                               SymbolId sym,
+                               TraderId trader,
+                               Side side,
+                               Price price,
+                               Quantity qty,
+                               Timestamp ts,
+                               OrderType type) {
+    Order* order = pool_.allocate(id, sym, trader, side, price, qty, ts, type);
     scratch_trades_.clear();
     match_impl(order, scratch_trades_);
-    if (!has_order(id))
-    {
+    if (!has_order(id)) {
         pool_.deallocate(order);
         return nullptr;
     }

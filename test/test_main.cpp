@@ -16,10 +16,10 @@ TEST(SanityTest, BasicArithmetic) {
 TEST(SanityTest, StringOperations) {
     std::string hello = "Hello";
     std::string world = "World";
-    
+
     EXPECT_EQ(hello.length(), 5);
     EXPECT_NE(hello, world);
-    
+
     std::string combined = hello + " " + world;
     EXPECT_EQ(combined, "Hello World");
 }
@@ -28,7 +28,7 @@ TEST(SanityTest, StringOperations) {
 TEST(Cpp17Test, StructuredBindings) {
     std::pair<int, std::string> p = {42, "answer"};
     auto [num, str] = p;
-    
+
     EXPECT_EQ(num, 42);
     EXPECT_EQ(str, "answer");
 }

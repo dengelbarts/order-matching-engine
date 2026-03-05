@@ -1,8 +1,8 @@
-#include <gtest/gtest.h>
 #include "price_level.hpp"
 
-TEST(PriceLevelTest, EmptyLevel)
-{
+#include <gtest/gtest.h>
+
+TEST(PriceLevelTest, EmptyLevel) {
     PriceLevel level;
     EXPECT_TRUE(level.is_empty());
     EXPECT_EQ(level.order_count(), 0);
@@ -10,8 +10,7 @@ TEST(PriceLevelTest, EmptyLevel)
     EXPECT_EQ(level.front(), nullptr);
 }
 
-TEST(PriceLevelTest, AddSingleOrder)
-{
+TEST(PriceLevelTest, AddSingleOrder) {
     PriceLevel level;
     Order order(1, 100, 100, Side::Buy, to_price(10.00), 50, 1000, OrderType::Limit);
 
@@ -23,8 +22,7 @@ TEST(PriceLevelTest, AddSingleOrder)
     EXPECT_EQ(level.front(), &order);
 }
 
-TEST(PriceLevelTest, FIFOOrdering)
-{
+TEST(PriceLevelTest, FIFOOrdering) {
     PriceLevel level;
     Order order1(1, 100, 100, Side::Buy, to_price(10.00), 50, 1000, OrderType::Limit);
     Order order2(2, 100, 100, Side::Buy, to_price(10.00), 60, 2000, OrderType::Limit);
@@ -38,8 +36,7 @@ TEST(PriceLevelTest, FIFOOrdering)
     EXPECT_EQ(level.order_count(), 3);
 }
 
-TEST(PriceLevelTest, TotalQuantity)
-{
+TEST(PriceLevelTest, TotalQuantity) {
     PriceLevel level;
 
     Order order1(1, 100, 100, Side::Buy, to_price(10.00), 50, 1000, OrderType::Limit);
@@ -53,8 +50,7 @@ TEST(PriceLevelTest, TotalQuantity)
     EXPECT_EQ(level.get_total_quantity(), 180);
 }
 
-TEST(PriceLevelTest, RemoveMiddleOrder)
-{
+TEST(PriceLevelTest, RemoveMiddleOrder) {
     PriceLevel level;
 
     Order order1(1, 100, 100, Side::Buy, to_price(10.00), 50, 1000, OrderType::Limit);
@@ -73,8 +69,7 @@ TEST(PriceLevelTest, RemoveMiddleOrder)
     EXPECT_EQ(level.front(), &order1);
 }
 
-TEST(PriceLevelTest, RemoveFirstOrder)
-{
+TEST(PriceLevelTest, RemoveFirstOrder) {
     PriceLevel level;
 
     Order order1(1, 100, 100, Side::Buy, to_price(10.00), 50, 1000, OrderType::Limit);
@@ -90,8 +85,7 @@ TEST(PriceLevelTest, RemoveFirstOrder)
     EXPECT_EQ(level.front(), &order2);
 }
 
-TEST(PriceLevelTest, RemoveNonExistentOrder)
-{
+TEST(PriceLevelTest, RemoveNonExistentOrder) {
     PriceLevel level;
 
     Order order1(1, 100, 100, Side::Buy, to_price(10.00), 50, 1000, OrderType::Limit);
@@ -104,8 +98,7 @@ TEST(PriceLevelTest, RemoveNonExistentOrder)
     EXPECT_EQ(level.order_count(), 1);
 }
 
-TEST(PriceLevelTest, RemoveFromEmptyLevel)
-{
+TEST(PriceLevelTest, RemoveFromEmptyLevel) {
     PriceLevel level;
 
     bool removed = level.remove_order(1);
@@ -114,8 +107,7 @@ TEST(PriceLevelTest, RemoveFromEmptyLevel)
     EXPECT_TRUE(level.is_empty());
 }
 
-TEST(PriceLevelTest, RemoveAllOrders)
-{
+TEST(PriceLevelTest, RemoveAllOrders) {
     PriceLevel level;
 
     Order order1(1, 100, 100, Side::Buy, to_price(10.00), 50, 1000, OrderType::Limit);
@@ -133,8 +125,7 @@ TEST(PriceLevelTest, RemoveAllOrders)
     EXPECT_EQ(level.front(), nullptr);
 }
 
-TEST(PriceLevelTest, AddAfterRemoveMaintainsFIFO)
-{
+TEST(PriceLevelTest, AddAfterRemoveMaintainsFIFO) {
     PriceLevel level;
 
     Order order1(1, 100, 100, Side::Buy, to_price(10.00), 50, 1000, OrderType::Limit);
@@ -150,8 +141,7 @@ TEST(PriceLevelTest, AddAfterRemoveMaintainsFIFO)
     EXPECT_EQ(level.order_count(), 2);
 }
 
-TEST(PriceLevelTest, LargeQuantitySum)
-{
+TEST(PriceLevelTest, LargeQuantitySum) {
     PriceLevel level;
 
     Order order1(1, 100, 100, Side::Buy, to_price(10.00), 1000000, 1000, OrderType::Limit);

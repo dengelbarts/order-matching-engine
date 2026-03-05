@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 
-project(OrderMatchingEngine 
-    VERSION 0.1.0
+project(OrderMatchingEngine
+    VERSION 1.0.0
     DESCRIPTION "High-performance limit order matching engine in C++"
     LANGUAGES CXX)
 
@@ -29,6 +29,13 @@ option(ENABLE_TSAN "Enable ThreadSanitizer" OFF)
 if(ENABLE_TSAN)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=thread")
+endif()
+
+# UndefinedBehaviorSanitizer build option
+option(ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
+if(ENABLE_UBSAN)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined -fno-omit-frame-pointer")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=undefined")
 endif()
 
 # Include directories
