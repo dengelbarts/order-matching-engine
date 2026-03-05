@@ -2,7 +2,7 @@
 
 A high-performance limit order book implemented in modern C++17.
 
-[![CI](https://github.com/dengelbarts/c-_order_matching_engine/actions/workflows/ci.yml/badge.svg)](https://github.com/dengelbarts/c-_order_matching_engine/actions/workflows/ci.yml)
+[![CI](https://github.com/dengelbarts/order-matching-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/dengelbarts/order-matching-engine/actions/workflows/ci.yml)
 
 ## Features
 
