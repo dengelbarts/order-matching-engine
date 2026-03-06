@@ -1,5 +1,13 @@
 #include "order_book.hpp"
 
+// Verify bids_/asks_ use the pmr allocator — documents the zero-allocation
+// contract for steady-state tree-node allocation.
+static_assert(
+    std::is_same_v<
+        std::pmr::map<Price, PriceLevel, std::greater<Price>>::allocator_type,
+        std::pmr::polymorphic_allocator<std::pair<const Price, PriceLevel>>>,
+    "OrderBook::bids_/asks_ must use std::pmr::polymorphic_allocator");
+
 #if defined(__GNUC__) || defined(__clang__)
 #define LIKELY(x) __builtin_expect(!!(x), 1)
 #define UNLIKELY(x) __builtin_expect(!!(x), 0)

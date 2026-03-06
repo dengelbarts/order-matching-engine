@@ -10,13 +10,21 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <memory_resource>
 #include <unordered_map>
 #include <vector>
 
 class OrderBook {
 private:
-    std::map<Price, PriceLevel, std::greater<Price>> bids_;
-    std::map<Price, PriceLevel, std::less<Price>> asks_;
+    // pool_resource_ must be declared before bids_/asks_ — member initialisation
+    // follows declaration order, so the pool exists before the maps reference it.
+    std::pmr::unsynchronized_pool_resource pool_resource_;
+
+    std::pmr::map<Price, PriceLevel, std::greater<Price>> bids_{
+        std::greater<Price>{}, &pool_resource_};
+    std::pmr::map<Price, PriceLevel, std::less<Price>> asks_{
+        std::less<Price>{}, &pool_resource_};
+
     std::unordered_map<OrderId, Order*> order_lookup_;
 
     std::function<void(const TradeEvent&)> on_trade_;
@@ -38,6 +46,13 @@ public:
     OrderBook() = default;
     ~OrderBook() = default;
 
+    // Non-copyable and non-movable: unsynchronized_pool_resource cannot be
+    // moved, so the whole class cannot be either.
+    OrderBook(const OrderBook&) = delete;
+    OrderBook& operator=(const OrderBook&) = delete;
+    OrderBook(OrderBook&&) = delete;
+    OrderBook& operator=(OrderBook&&) = delete;
+
     void set_trade_callback(std::function<void(const TradeEvent&)> cb);
     void set_order_callback(std::function<void(const OrderEvent&)> cb);
 
@@ -45,8 +60,12 @@ public:
 
     void add_order(Order* order);
 
-    const std::map<Price, PriceLevel, std::greater<Price>>& get_bids() const { return bids_; }
-    const std::map<Price, PriceLevel, std::less<Price>>& get_asks() const { return asks_; }
+    const std::pmr::map<Price, PriceLevel, std::greater<Price>>& get_bids() const {
+        return bids_;
+    }
+    const std::pmr::map<Price, PriceLevel, std::less<Price>>& get_asks() const {
+        return asks_;
+    }
 
     bool has_order(OrderId order_id) const;
     Order* get_order(OrderId order_id) const;

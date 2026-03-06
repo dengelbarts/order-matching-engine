@@ -1,3 +1,4 @@
+#include "../include/matching_engine.hpp"
 #include "../include/order.hpp"
 #include "../include/order_book.hpp"
 
@@ -112,7 +113,7 @@ static void BM_SustainedThroughput(benchmark::State& state) {
     for (auto _ : state) {
         OrderBook book;
         execute_workload(book, wl);
-        benchmark::DoNotOptimize(book);
+        benchmark::ClobberMemory();
     }
     state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(N));
 }
@@ -185,7 +186,7 @@ static void BM_CancelHeavy(benchmark::State& state) {
                 break;
             }
         }
-        benchmark::DoNotOptimize(book);
+        benchmark::ClobberMemory();
     }
     state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(N));
 }
@@ -219,8 +220,58 @@ static void BM_DeepBook(benchmark::State& state) {
                           static_cast<Quantity>(100) * static_cast<Quantity>(LEVELS),
                           0,
                           OrderType::Market);
-        benchmark::DoNotOptimize(book);
+        benchmark::ClobberMemory();
     }
     state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(LEVELS));
 }
 BENCHMARK(BM_DeepBook)->Arg(1'000)->Arg(10'000)->Unit(benchmark::kMillisecond);
+
+// ─── Benchmark: Multi-Symbol Routing ──────────────────────────────────────────
+// 4 symbols, round-robin routing, 1M orders total.
+// Measures the overhead of MatchingEngine routing vs a bare single-symbol book.
+static void BM_MultiSymbol(benchmark::State& state) {
+    constexpr int NUM_SYMBOLS = 4;
+    const int N = static_cast<int>(state.range(0));
+
+    // Pre-build one workload per symbol (same mix, different id ranges).
+    std::vector<std::vector<WorkloadOp>> workloads;
+    workloads.reserve(NUM_SYMBOLS);
+    for (int s = 0; s < NUM_SYMBOLS; ++s)
+        workloads.push_back(
+            make_realistic_workload(N / NUM_SYMBOLS,
+                                    /*id_base=*/static_cast<uint64_t>(s) * (N / NUM_SYMBOLS) + 1,
+                                    /*seed=*/static_cast<unsigned>(s + 1)));
+
+    for (auto _ : state) {
+        MatchingEngine engine;
+
+        for (int s = 0; s < NUM_SYMBOLS; ++s) {
+            SymbolId sym = static_cast<SymbolId>(s + 1);
+            for (const auto& op : workloads[s]) {
+                OrderCommand cmd;
+                switch (op.type) {
+                case WorkloadOp::Type::AddLimit:
+                    cmd = OrderCommand::make_new(
+                        op.order_id, sym, 1, op.side, op.price, op.quantity, 0, OrderType::Limit);
+                    break;
+                case WorkloadOp::Type::Cancel:
+                    cmd = OrderCommand::make_cancel(op.target_id);
+                    cmd.symbol_id = sym;
+                    break;
+                case WorkloadOp::Type::AddIOC:
+                    cmd = OrderCommand::make_new(
+                        op.order_id, sym, 1, op.side, op.price, op.quantity, 0, OrderType::IOC);
+                    break;
+                case WorkloadOp::Type::Amend:
+                    cmd = OrderCommand::make_amend(op.order_id, op.new_price, op.new_qty);
+                    cmd.symbol_id = sym;
+                    break;
+                }
+                engine.route(cmd);
+            }
+        }
+        benchmark::ClobberMemory();
+    }
+    state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(N));
+}
+BENCHMARK(BM_MultiSymbol)->Arg(1'000'000)->Unit(benchmark::kMillisecond);

@@ -14,7 +14,7 @@ A high-performance limit order book implemented in modern C++17.
 - Market data API: `get_bbo()`, `get_depth(n)`, `get_snapshot()`
 - FIX-like message parser: zero-copy `std::string_view` parsing for `NEW`, `CANCEL`, `AMEND`
 - Self-match prevention (CME/Nasdaq/ICE standard)
-- 195 tests — ASan, TSan, and UBSan clean
+- 207 tests — ASan, TSan, and UBSan clean
 
 ## Performance
 
@@ -64,6 +64,7 @@ flowchart TD
 | `ObjectPool<T>` | `object_pool.hpp` | Pre-allocated slab; O(1) alloc/free on the hot path |
 | `SpscQueue<T,N>` | `spsc_queue.hpp` | Wait-free ring buffer; one cache line per index |
 | `OrderCommand` | `order_command.hpp` | 64-byte command struct passed through the queue |
+| `MatchingEngine` | `matching_engine.hpp` | Multi-symbol router; lazy book creation, reverse-lookup cancel/amend |
 | `MatchingPipeline` | `matching_pipeline.hpp` | Owns queue + matching thread; decouples producers |
 | `FIX parser` | `fix_parser.hpp` | Zero-copy `string_view` parser for NEW/CANCEL/AMEND |
 
@@ -191,3 +192,13 @@ git checkout day-10   # Phase 1 completion
 git checkout v1.0.0   # Final version
 git diff day-1..day-10
 ```
+
+---
+
+## Post-1.0.0 Extensions
+
+Extensions beyond v1.0.0, targeting real-world exchange infrastructure.
+
+| Day | Milestone |
+|-----|-----------|
+| 26 | **Multi-symbol engine + zero-allocation completion** — `MatchingEngine` routes commands to per-symbol `OrderBook`s (lazy creation, reverse-lookup cancel/amend); `OrderBook::bids_`/`asks_` swapped to `std::pmr::map` backed by `unsynchronized_pool_resource`, eliminating heap traffic in the steady-state hot path. 12 new tests; `BM_MultiSymbol` (4 symbols, 1M ops) runs within 10% of single-symbol throughput; valgrind massif confirms zero malloc calls from the matching hot path. |

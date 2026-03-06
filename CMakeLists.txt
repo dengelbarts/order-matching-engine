@@ -96,6 +96,7 @@ add_executable(ome_tests
     test/test_pipeline.cpp
     test/test_market_data.cpp
     test/test_fix_parser.cpp
+    test/test_matching_engine.cpp
 )
 target_link_libraries(ome_tests ome_lib GTest::gtest_main Threads::Threads)
 
