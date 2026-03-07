@@ -70,6 +70,8 @@ add_library(ome_lib
     src/price_level.cpp
     src/order_book.cpp
     src/fix_parser.cpp
+    src/fix42_parser.cpp
+    src/fix42_serializer.cpp
 )
 target_include_directories(ome_lib PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
@@ -97,6 +99,8 @@ add_executable(ome_tests
     test/test_market_data.cpp
     test/test_fix_parser.cpp
     test/test_matching_engine.cpp
+    test/test_fix42_parser.cpp
+    test/test_fix42_serializer.cpp
 )
 target_link_libraries(ome_tests ome_lib GTest::gtest_main Threads::Threads)
 
