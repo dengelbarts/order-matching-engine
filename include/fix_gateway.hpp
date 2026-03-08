@@ -44,7 +44,7 @@ private:
     struct OutboundMsg {
         int fd = -1;
         int len = 0;
-        char data[512] = {};
+        char data[2048] = {};
     };
     static constexpr std::size_t OUTBOUND_CAPACITY = 1 << 12; // 4096 slots
     SpscQueue<OutboundMsg, OUTBOUND_CAPACITY> outbound_queue_;

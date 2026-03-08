@@ -86,11 +86,6 @@ FIXGateway::FIXGateway() {
             1);
 
         push_outbound(meta.fd, report);
-
-        if (ev.type == OrderEventType::Filled ||
-            ev.type == OrderEventType::Cancelled) {
-            order_meta_.erase(it);
-        }
     });
 
     // Trade event callback (fires on matching thread)
@@ -157,6 +152,12 @@ SymbolId FIXGateway::get_or_assign_symbol(const std::string& sym) {
 void FIXGateway::push_outbound(int fd, const std::string& report) {
     OutboundMsg msg;
     msg.fd  = fd;
+    if (report.size() >= sizeof(msg.data)) {
+        // Report too large for outbound buffer — truncated. Should not happen
+        // in normal operation. Increase OutboundMsg::data size if this fires.
+        std::cerr << "push_outbound: FIX report truncated ("
+                  << report.size() << " >= " << sizeof(msg.data) << ")\n";
+    }
     msg.len = static_cast<int>(
         std::min(report.size(), sizeof(msg.data) - 1));
     std::memcpy(msg.data, report.data(), msg.len);
@@ -169,16 +170,17 @@ void FIXGateway::push_outbound(int fd, const std::string& report) {
 }
 
 void FIXGateway::drain_outbound() {
-    // Drain all bytes from notify pipe
-    char buf[64];
-    while (::read(notify_pipe_r_, buf, sizeof(buf)) > 0)
-        ;
-
+    // Drain the queue first to avoid missing wakeups
     OutboundMsg msg;
     while (outbound_queue_.try_pop(msg)) {
         if (msg.fd >= 0 && msg.len > 0)
             server_.send_to(msg.fd, msg.data, msg.len);
     }
+
+    // Then drain all notification bytes from the pipe
+    char buf[64];
+    while (::read(notify_pipe_r_, buf, sizeof(buf)) > 0)
+        ;
 }
 
 void FIXGateway::on_accept(int fd) {

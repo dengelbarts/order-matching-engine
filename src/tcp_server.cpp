@@ -142,8 +142,9 @@ bool TcpServer::send_to(int fd, const char* data, int len) {
     while (sent < len) {
         ssize_t n = ::send(fd, data + sent, len - sent, MSG_NOSIGNAL);
         if (n < 0) {
-            if (errno == EINTR) continue;
-            return false;
+            if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
+                continue;  // retry
+            return false;  // real error
         }
         sent += static_cast<int>(n);
     }
