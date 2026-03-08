@@ -20,6 +20,7 @@
 
 static int tcp_connect(uint16_t port) {
     int fd = ::socket(AF_INET, SOCK_STREAM, 0);
+    if (fd < 0) return -1;
     sockaddr_in addr{};
     addr.sin_family      = AF_INET;
     addr.sin_port        = htons(port);
@@ -100,7 +101,11 @@ static std::string recv_available(int fd, int timeout_ms = 400) {
         if (::select(fd + 1, &rfds, nullptr, nullptr, &tv) > 0) {
             char buf[2048]{};
             ssize_t n = ::recv(fd, buf, sizeof(buf) - 1, 0);
-            if (n > 0) result.append(buf, n);
+            if (n > 0) {
+                result.append(buf, n);
+            } else if (n == 0) {
+                break;  // EOF — connection closed
+            }
         }
     }
     return result;
