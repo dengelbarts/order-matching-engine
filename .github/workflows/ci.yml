@@ -41,3 +41,15 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build --output-on-failure
+
+      - name: Gateway self-test
+        if: runner.os == 'Linux'
+        run: |
+          ./build/ome_main --port 9001 &
+          GW_PID=$!
+          sleep 1
+          python3 demo/fix_client.py --port 9001 --self-test
+          STATUS=$?
+          kill $GW_PID 2>/dev/null || true
+          wait $GW_PID 2>/dev/null || true
+          exit $STATUS
