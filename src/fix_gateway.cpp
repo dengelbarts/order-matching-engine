@@ -81,39 +81,50 @@ FIXGateway::FIXGateway() {
 
     // Order event callback (fires on matching thread)
     pipeline_.set_order_callback([this](const OrderEvent& ev) {
+        std::unique_lock<std::mutex> lk(order_meta_mutex_);
         auto it = order_meta_.find(ev.order_id);
         if (it == order_meta_.end()) return;
-        const OrderMeta& meta = it->second;
+        // Copy metadata so we can release the lock before building the report
+        const int         fd        = it->second.fd;
+        const std::string cl_ord_id = it->second.cl_ord_id;
+        const std::string symbol    = it->second.symbol;
+        lk.unlock();
 
         std::string report = serializer_.execution_report(
             ev,
-            meta.cl_ord_id,
-            meta.symbol,
+            cl_ord_id,
+            symbol,
             "ENGINE",
             "CLIENT",
             1);
 
-        push_outbound(meta.fd, report);
+        push_outbound(fd, report);
     });
 
     // Trade event callback (fires on matching thread)
     pipeline_.set_trade_callback([this](const TradeEvent& te) {
         auto send_fill = [&](OrderId oid, Side side) {
+            std::unique_lock<std::mutex> lk(order_meta_mutex_);
             auto it = order_meta_.find(oid);
             if (it == order_meta_.end()) return;
-            const OrderMeta& meta = it->second;
+            // Copy metadata so we can release the lock before building the report
+            const int         fd           = it->second.fd;
+            const std::string cl_ord_id    = it->second.cl_ord_id;
+            const std::string symbol       = it->second.symbol;
+            const Quantity    original_qty = it->second.original_qty;
+            lk.unlock();
 
-            Quantity leaves = (meta.original_qty > te.quantity)
-                                  ? meta.original_qty - te.quantity
+            Quantity leaves = (original_qty > te.quantity)
+                                  ? original_qty - te.quantity
                                   : 0;
             bool fully_filled = (leaves == 0);
 
             std::string report = serializer_.fill_report(
                 oid,
-                meta.cl_ord_id,
-                meta.symbol,
+                cl_ord_id,
+                symbol,
                 side,
-                meta.original_qty,
+                original_qty,
                 te.price,
                 te.quantity,
                 te.quantity,
@@ -123,7 +134,7 @@ FIXGateway::FIXGateway() {
                 "CLIENT",
                 1);
 
-            push_outbound(meta.fd, report);
+            push_outbound(fd, report);
         };
 
         send_fill(te.buy_order_id,  Side::Buy);
@@ -220,11 +231,14 @@ void FIXGateway::on_closed(int fd) {
     for (OrderId oid : state.resting_orders)
         pipeline_.submit(OrderCommand::make_cancel(oid));
 
-    for (auto mit = order_meta_.begin(); mit != order_meta_.end(); ) {
-        if (mit->second.fd == fd)
-            mit = order_meta_.erase(mit);
-        else
-            ++mit;
+    {
+        std::lock_guard<std::mutex> lk(order_meta_mutex_);
+        for (auto mit = order_meta_.begin(); mit != order_meta_.end(); ) {
+            if (mit->second.fd == fd)
+                mit = order_meta_.erase(mit);
+            else
+                ++mit;
+        }
     }
 
     clients_.erase(it);
@@ -324,12 +338,15 @@ void FIXGateway::handle_new_order(int fd, ClientState& state, const Fix42Message
         get_timestamp_ns(),
         msg.ord_type);
 
-    order_meta_[order_id] = OrderMeta{
-        fd,
-        std::string(msg.cl_ord_id),
-        symbol,
-        msg.side,
-        msg.qty};
+    {
+        std::lock_guard<std::mutex> lk(order_meta_mutex_);
+        order_meta_[order_id] = OrderMeta{
+            fd,
+            std::string(msg.cl_ord_id),
+            symbol,
+            msg.side,
+            msg.qty};
+    }
 
     state.resting_orders.push_back(order_id);
 

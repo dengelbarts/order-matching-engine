@@ -109,8 +109,11 @@ add_executable(ome_tests
 target_link_libraries(ome_tests ome_lib GTest::gtest_main Threads::Threads)
 
 # Register tests with CTest
+# Use PRE_TEST discovery mode so the test binary is not executed at build time.
+# This is required for sanitizer builds (TSan, ASan) where running the binary
+# during cmake --build triggers sanitizer instrumentation at discovery time.
 include(GoogleTest)
-gtest_discover_tests(ome_tests)
+gtest_discover_tests(ome_tests DISCOVERY_MODE PRE_TEST)
 
 # Print build configuration
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")

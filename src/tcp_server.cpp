@@ -84,6 +84,7 @@ void TcpServer::run() {
 
         // Client fds
         std::size_t client_start = pfds.size();
+        std::size_t client_count_polled = client_fds_.size(); // snapshot before poll
         for (int fd : client_fds_)
             pfds.push_back({fd, POLLIN, 0});
 
@@ -107,11 +108,13 @@ void TcpServer::run() {
                 watchers_[i].cb();
         }
 
-        // Client fds — snapshot first so callbacks can modify client_fds_
+        // Client fds — use client_count_polled (the count when pfds was built)
+        // so we never read past the end of pfds even if handle_accept() added
+        // new fds to client_fds_ between building pfds and now.
         std::vector<int> to_process;
-        for (std::size_t i = 0; i < client_fds_.size(); ++i) {
+        for (std::size_t i = 0; i < client_count_polled; ++i) {
             if (pfds[client_start + i].revents & (POLLIN | POLLHUP | POLLERR))
-                to_process.push_back(client_fds_[i]);
+                to_process.push_back(pfds[client_start + i].fd);
         }
 
         for (int fd : to_process) {

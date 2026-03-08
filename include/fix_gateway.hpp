@@ -8,6 +8,7 @@
 #include "tcp_server.hpp"
 
 #include <memory>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -55,7 +56,7 @@ private:
     void push_outbound(int fd, const std::string& report);
     void drain_outbound();
 
-    // ---- Per-order metadata (gateway thread only) ----
+    // ---- Per-order metadata (accessed from both gateway and matching threads) ----
     struct OrderMeta {
         int         fd;
         std::string cl_ord_id;
@@ -64,6 +65,7 @@ private:
         Quantity    original_qty;
     };
     std::unordered_map<OrderId, OrderMeta> order_meta_;
+    std::mutex order_meta_mutex_;
 
     // ---- Per-client state (gateway thread only) ----
     struct ClientState {
