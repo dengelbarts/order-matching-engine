@@ -20,8 +20,9 @@
 //   - Matching thread : runs inside MatchingPipeline, fires order/trade callbacks.
 //
 // Hot path (matching thread -> gateway thread):
-//   Callbacks push OutboundMsg into outbound_queue_ (SPSC, lock-free).
-//   They then write 1 byte to notify_pipe_w_ to wake the poll loop.
+//   Callbacks acquire order_meta_mutex_ briefly to copy per-order metadata,
+//   then push OutboundMsg into outbound_queue_ (SPSC, lock-free) and write
+//   1 byte to notify_pipe_w_ to wake the poll loop.
 //   The poll loop drains the queue and calls TcpServer::send_to().
 class FIXGateway {
 public:
