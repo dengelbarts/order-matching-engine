@@ -103,6 +103,8 @@ add_executable(ome_tests
     test/test_matching_engine.cpp
     test/test_fix42_parser.cpp
     test/test_fix42_serializer.cpp
+    test/test_tcp_server.cpp
+    test/test_fix_gateway.cpp
 )
 target_link_libraries(ome_tests ome_lib GTest::gtest_main Threads::Threads)
 

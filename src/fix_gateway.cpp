@@ -2,6 +2,7 @@
 #include "order_command.hpp"
 
 #include <arpa/inet.h>
+#include <fcntl.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -62,6 +63,13 @@ FIXGateway::FIXGateway() {
         throw std::runtime_error("pipe failed");
     notify_pipe_r_ = fds[0];
     notify_pipe_w_ = fds[1];
+
+    // Make notify_pipe_r_ non-blocking so drain_outbound's read loop exits
+    // when the pipe is empty rather than blocking forever.
+    {
+        int flags = ::fcntl(notify_pipe_r_, F_GETFL, 0);
+        ::fcntl(notify_pipe_r_, F_SETFL, flags | O_NONBLOCK);
+    }
 
     // Register notify pipe with TcpServer poll loop
     server_.add_watcher(notify_pipe_r_, [this] { drain_outbound(); });
@@ -222,22 +230,35 @@ void FIXGateway::on_closed(int fd) {
     clients_.erase(it);
 }
 
-void FIXGateway::process_recv_buf(int fd, ClientState& state) {
-    auto& buf = state.recv_buf;
+void FIXGateway::process_recv_buf(int fd, ClientState& /*state*/) {
     while (true) {
+        // Re-look up the client each iteration: handle_message (e.g. on
+        // Logout) may have erased it from clients_, invalidating references.
+        auto it = clients_.find(fd);
+        if (it == clients_.end()) return;
+        ClientState& cur = it->second;
+        auto& buf = cur.recv_buf;
+
         auto pos = buf.find("10=");
         if (pos == std::string::npos) break;
 
         auto end = buf.find('\x01', pos + 3);
         if (end == std::string::npos) break;
 
-        std::string_view msg_view(buf.data(), end + 1);
+        std::size_t consumed = end + 1;
+
+        std::string_view msg_view(buf.data(), consumed);
         Fix42Message msg = parser_.parse(msg_view);
 
         if (msg.valid)
-            handle_message(fd, state, msg);
+            handle_message(fd, cur, msg);
+        // NOTE: after handle_message, 'cur' and 'buf' may be dangling
+        //       (client erased by handle_logout).  Re-look up next iteration.
 
-        buf.erase(0, end + 1);
+        // Erase consumed bytes only if the client is still alive.
+        auto it2 = clients_.find(fd);
+        if (it2 == clients_.end()) return;
+        it2->second.recv_buf.erase(0, consumed);
     }
 }
 
