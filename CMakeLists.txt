@@ -72,12 +72,14 @@ add_library(ome_lib
     src/fix_parser.cpp
     src/fix42_parser.cpp
     src/fix42_serializer.cpp
+    src/tcp_server.cpp
+    src/fix_gateway.cpp
 )
 target_include_directories(ome_lib PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
 # Main executable
 add_executable(ome_main src/main.cpp)
-target_link_libraries(ome_main ome_lib)
+target_link_libraries(ome_main ome_lib Threads::Threads)
 
 # Single test executable with all tests
 add_executable(ome_tests
