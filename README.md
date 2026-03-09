@@ -4,6 +4,8 @@ A high-performance limit order book implemented in modern C++17.
 
 [![CI](https://github.com/dengelbarts/order-matching-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/dengelbarts/order-matching-engine/actions/workflows/ci.yml)
 
+![Demo](demo/demo.gif)
+
 ## Features
 
 - Price-time priority matching (FIFO per price level)
