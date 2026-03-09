@@ -2,12 +2,11 @@
 
 ## Elevator Pitch (30 seconds)
 
-"I built a production-quality limit order book in C++17 over 25 days. It handles limit,
-market, IOC, and FOK orders with price-time priority, processes 172K+ orders per second
-sustained through a lock-free SPSC queue, uses a memory pool for zero-allocation hot path,
-and includes a FIX-like message parser and full market data API. 195 tests, AddressSanitizer,
-ThreadSanitizer, and UndefinedBehaviorSanitizer clean, GitHub Actions CI on Ubuntu GCC,
-Ubuntu Clang, and macOS."
+"I built a complete exchange from scratch in C++17 — FIX 4.2 protocol, multi-symbol routing,
+lock-free producer-consumer pipeline, zero-allocation hot path with pmr::map and an object
+pool, and a TCP server you can connect to right now and submit real orders. 256 tests,
+AddressSanitizer, ThreadSanitizer, and UndefinedBehaviorSanitizer clean, GitHub Actions CI
+on Ubuntu GCC, Ubuntu Clang, and macOS including a live end-to-end gateway self-test."
 
 ---
 
@@ -57,7 +56,22 @@ rests) to avoid a crossed book — consistent with CME, Nasdaq, and ICE exchange
 - **FOK**: before touching the book, do a read-only `can_fill()` walk to check if the full
   quantity can be filled. If not, cancel immediately with zero trades. All-or-nothing.
 
-### 7. Amendment priority rules — why does a qty decrease keep priority but a qty increase loses it?
+### 7. Why `std::pmr::map` with `unsynchronized_pool_resource` instead of `monotonic_buffer_resource`?
+
+`monotonic_buffer_resource` never frees memory — it's for short-lived arenas. An order book
+is long-lived and price levels are constantly created and destroyed. `unsynchronized_pool_resource`
+maintains per-size free-lists so released tree nodes are recycled, keeping memory bounded.
+`unsynchronized` is correct here because the book is accessed only from the matching thread.
+
+### 8. Why epoll instead of select or poll for the TCP server?
+
+`select` and `poll` are O(N) per call — they scan all registered fds. `epoll` is O(1) for
+`epoll_wait` (the kernel maintains the ready list internally) and O(log N) for
+`epoll_ctl` (fd registration). For a gateway with many concurrent client connections, `epoll`
+is the standard Linux choice. Edge-triggered mode (`EPOLLET`) was considered but
+level-triggered is simpler to reason about with partial reads and is sufficient for this load.
+
+### 9. Amendment priority rules — why does a qty decrease keep priority but a qty increase loses it?
 
 This mirrors exchange practice (NASDAQ, ICE). A quantity decrease is a concession — the
 trader is giving up queue position they already held, so keeping their time priority is fair.
@@ -70,12 +84,12 @@ must go to the back of the queue at that price level, just like a new order.
 
 | Metric | Result | Target |
 |--------|--------|--------|
-| Sustained throughput (1M orders) | **180K orders/s** | ≥ 150K/s ✅ |
-| Limit add mean latency | **126 ns** | < 5 µs ✅ |
-| Limit add p99 latency | **173 ns** | < 10 µs ✅ |
-| IOC match mean latency | **1,367 ns** | < 5 µs ✅ |
-| IOC match p99 latency | **1,638 ns** | < 10 µs ✅ |
-| 15-min soak test | **5.87B ops, 0 violations** | — ✅ |
+| Sustained throughput (1M orders) | **1.83M orders/s** | ≥ 150K/s ✅ |
+| Multi-symbol throughput (4 symbols, 1M) | **2.11M orders/s** | — ✅ |
+| Cancel-heavy throughput | **4.52M orders/s** | — ✅ |
+| Limit add mean / p99 latency | **91 ns / 166 ns** | < 5 µs / < 10 µs ✅ |
+| IOC match mean / p99 latency | **435 ns / 851 ns** | < 5 µs / < 10 µs ✅ |
+| 60-s soak test | **5.77M ops/s, 0 violations** | — ✅ |
 | Pool heap fallbacks | **0** | 0 ✅ |
 
 Build: GCC 13.3, `-O3`, Release, single core.
@@ -85,36 +99,40 @@ Build: GCC 13.3, `-O3`, Release, single core.
 ## Architecture Walk-Through (for whiteboard)
 
 ```
-Producer Thread
-    │ FIX-like string ("NEW|side=BUY|price=10.50|qty=100")
+TCP Client (FIX 4.2)
+    │ raw bytes over TCP
     ▼
-FIX Parser  ──► ParsedMessage (string_view, zero-copy)
+TcpServer  (epoll, non-blocking, accept4)
+    │ on_readable(fd)
+    ▼
+FIXGateway  ──► Fix42Parser (zero-copy string_view, validates checksum)
+    │                │
+    │           Fix42Session (SenderCompId, SeqNum, logged_in)
+    │
+    │ OrderCommand (64-byte, cache-aligned)
+    ▼
+MatchingEngine  ──► symbol_id → OrderBook  (lazy creation)
     │
     ▼
-OrderCommand factory  ──► 64-byte cache-aligned struct
+OrderBook::create_order()
     │
-    ▼
-SpscQueue<OrderCommand, 65536>  (wait-free ring buffer)
-    │  try_pop() spins
-    ▼
-Matching Thread ──► OrderBook::create_order()
-    │                   │
-    │              ObjectPool<Order>  (O(1) alloc, slab)
-    │                   │
-    │              match_impl()  (price-time priority walk)
-    │                   │
-    │              Callbacks: TradeEvent, OrderEvent
+    ├── ObjectPool<Order>          (O(1) alloc, zero heap in steady state)
+    ├── pmr::map<Price, PriceLevel> (pool-backed, zero tree-node allocs)
     │
-    ▼
-Market Data API
-    get_bbo()       ── best bid & ask in one call
-    get_depth(n)    ── top N levels per side
-    get_snapshot()  ── full book
+    └── match_impl()  (price-time priority walk)
+            │
+            └── Callbacks: TradeEvent, OrderEvent
+                    │
+                    ▼
+            FIXGateway::push_outbound()
+                    │
+                    ▼
+            Fix42Serializer  ──► ExecutionReport → TCP client
 ```
 
 ---
 
-## Test Coverage (195 tests)
+## Test Coverage (256 tests)
 
 | Area | Tests | Sanitizers |
 |------|-------|------------|
@@ -134,25 +152,34 @@ Market Data API
 | SPSC queue (incl. concurrent 1M) | 8 | TSan |
 | MatchingPipeline (incl. 100K) | 7 | TSan |
 | Market data API | 15 | ASan, UBSan |
-| FIX parser | 22 | ASan, UBSan |
+| FIX parser (toy) | 22 | ASan, UBSan |
+| MatchingEngine (multi-symbol) | 12 | ASan, UBSan |
+| FIX 4.2 parser | 15 | ASan, UBSan |
+| FIX 4.2 serializer | 10 | ASan, UBSan |
+| TcpServer | 8 | TSan |
+| FIXGateway (end-to-end) | 6 | TSan |
 
 ---
 
 ## Common Follow-Up Questions
 
-**Q: How would you scale this to multiple symbols?**
-One `OrderBook` per symbol. The `MatchingPipeline` can be templated or hold a `symbol_id`
-routing table. Multiple pipelines run in parallel — no shared state between books.
+**Q: How does multi-symbol routing work?**
+`MatchingEngine` holds an `unordered_map<SymbolId, OrderBook>`. `route(cmd)` dispatches by
+`cmd.symbol_id`, creating the book lazily on first order. Cancel and amend do a reverse lookup
+(OrderId → SymbolId) so the caller doesn't need to know which book owns the order. Books are
+fully independent — no shared state, no locks between symbols.
+
+**Q: How did you eliminate heap allocations on the hot path?**
+Two layers. First, `ObjectPool<Order>` pre-allocates a contiguous slab of `Order` structs and
+maintains a free-list stack — O(1) alloc/free, zero `new`/`delete` in steady state. Second,
+`OrderBook::bids_` and `asks_` are `std::pmr::map` backed by an
+`unsynchronized_pool_resource` — tree node allocations come from the pool, not the heap.
+Together, steady-state order processing touches no system allocator.
 
 **Q: How would you add persistence / crash recovery?**
 Write-ahead log (WAL): before processing each `OrderCommand`, append it to a memory-mapped
 file. On restart, replay the log to reconstruct book state. The SPSC queue already serialises
 commands so the log is inherently ordered.
-
-**Q: What's the bottleneck at higher load?**
-At 1M+ orders/s the `std::map` tree node allocations become the bottleneck when many new
-price levels are created. The next optimization would be a pool-backed `std::pmr::map` using
-`std::pmr::monotonic_buffer_resource`, eliminating all dynamic allocation from the hot path.
 
 **Q: Why not use a hash map with a sorted vector for the book?**
 A sorted `std::vector<PriceLevel>` would give better cache locality for iteration but O(N)
@@ -164,3 +191,15 @@ For a narrow, stable spread this could be revisited.
 No — SPSC means Single Producer, Single Consumer. Multiple producers would require either a
 mutex around `try_push()` or an MPSC (Multi-Producer Single Consumer) queue. The
 `MatchingPipeline` documents this constraint explicitly.
+
+**Q: How does the FIX 4.2 gateway handle the matching thread safely?**
+`MatchingEngine` callbacks fire on the matching thread. `FIXGateway` runs on the epoll thread.
+To avoid locking the matching thread, completed orders are pushed into a lock-free outbound
+queue and a pipe byte wakes the epoll loop. The matching thread never blocks — only the
+gateway thread does I/O.
+
+**Q: What does FIX 4.2 checksum validation catch?**
+The CheckSum (tag 10) is the sum of all bytes before tag 10, mod 256, zero-padded to 3 digits.
+It catches single-byte corruption and framing errors. It's not a cryptographic hash — FIX
+relies on transport-layer integrity (TCP) for stronger guarantees. The parser also validates
+BodyLength (tag 9) and required fields per message type before dispatching.
