@@ -137,7 +137,7 @@ void TcpServer::run() {
 
 void TcpServer::stop() {
     char b = 1;
-    ::write(stop_pipe_w_, &b, 1);
+    [[maybe_unused]] auto r = ::write(stop_pipe_w_, &b, 1);
 }
 
 bool TcpServer::send_to(int fd, const char* data, int len) {

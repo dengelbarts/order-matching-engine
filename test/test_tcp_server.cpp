@@ -214,7 +214,7 @@ TEST(TcpServer, WatcherCbFires) {
 
     server.add_watcher(pipe_fds[0], [&]() {
         char buf[8]{};
-        ::read(pipe_fds[0], buf, sizeof(buf));
+        [[maybe_unused]] auto r = ::read(pipe_fds[0], buf, sizeof(buf));
         watcher_fired.store(true);
     });
 
@@ -223,7 +223,7 @@ TEST(TcpServer, WatcherCbFires) {
 
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     char b = 1;
-    ::write(pipe_fds[1], &b, 1);
+    [[maybe_unused]] auto w = ::write(pipe_fds[1], &b, 1);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     EXPECT_TRUE(watcher_fired.load());

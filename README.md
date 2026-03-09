@@ -13,8 +13,10 @@ A high-performance limit order book implemented in modern C++17.
 - Memory pool for zero-allocation hot path (`ObjectPool<Order>`)
 - Market data API: `get_bbo()`, `get_depth(n)`, `get_snapshot()`
 - FIX-like message parser: zero-copy `std::string_view` parsing for `NEW`, `CANCEL`, `AMEND`
+- FIX 4.2 protocol — parser, ExecutionReport serializer, TCP gateway (`epoll`)
+- Multi-symbol routing via `MatchingEngine`; `std::pmr::map` for zero heap traffic
 - Self-match prevention (CME/Nasdaq/ICE standard)
-- 207 tests — ASan, TSan, and UBSan clean
+- 256 tests — ASan, TSan, and UBSan clean
 
 ## Performance
 
@@ -22,12 +24,11 @@ Measured on GCC 13.3, `-O3`, Release build, single core:
 
 | Metric | Result | Target |
 |--------|--------|--------|
-| Sustained throughput (1M orders) | **180K orders/s** | ≥ 150K/s |
-| Limit add — mean latency | **126 ns** | < 5 µs |
-| Limit add — p99 latency | **173 ns** | < 10 µs |
-| IOC match — mean latency | **1,367 ns** | < 5 µs |
-| IOC match — p99 latency | **1,638 ns** | < 10 µs |
-| 15-min soak test | **5.87B ops, 0 invariant violations** | — |
+| Sustained throughput (1M orders) | **1.83M orders/s** | ≥ 150K/s |
+| Multi-symbol throughput (4 symbols, 1M) | **2.11M orders/s** | — |
+| Limit add — mean / p99 latency | **91 ns / 166 ns** | < 5 µs / < 10 µs |
+| IOC match — mean / p99 latency | **435 ns / 851 ns** | < 5 µs / < 10 µs |
+| 60-s soak test | **5.77M ops/s, 0 invariant violations** | — |
 
 ## Architecture
 
@@ -67,6 +68,9 @@ flowchart TD
 | `MatchingEngine` | `matching_engine.hpp` | Multi-symbol router; lazy book creation, reverse-lookup cancel/amend |
 | `MatchingPipeline` | `matching_pipeline.hpp` | Owns queue + matching thread; decouples producers |
 | `FIX parser` | `fix_parser.hpp` | Zero-copy `string_view` parser for NEW/CANCEL/AMEND |
+| `Fix42Parser` / `Fix42Serializer` | `fix42_parser.hpp`, `fix42_serializer.hpp` | FIX 4.2 tag=value parser + ExecutionReport builder |
+| `TcpServer` | `tcp_server.hpp` | `epoll`-based non-blocking TCP server |
+| `FIXGateway` | `fix_gateway.hpp` | Ties TCP + FIX 4.2 + `MatchingEngine`; streams ExecutionReports |
 
 ## Building
 
@@ -88,6 +92,15 @@ cmake -S . -B build-ubsan -DCMAKE_BUILD_TYPE=Debug -DENABLE_UBSAN=ON
 ```
 
 ## Usage
+
+### Running the FIX 4.2 gateway
+
+```bash
+./build/ome_main            # listens on :9000
+./build/ome_main --port 9001
+
+python3 demo/fix_client.py  # connects, submits orders, prints ExecutionReports
+```
 
 ### Running the demo
 
@@ -201,4 +214,6 @@ Extensions beyond v1.0.0, targeting real-world exchange infrastructure.
 
 | Day | Milestone |
 |-----|-----------|
-| 26 | **Multi-symbol engine + zero-allocation completion** — `MatchingEngine` routes commands to per-symbol `OrderBook`s (lazy creation, reverse-lookup cancel/amend); `OrderBook::bids_`/`asks_` swapped to `std::pmr::map` backed by `unsynchronized_pool_resource`, eliminating heap traffic in the steady-state hot path. 12 new tests; `BM_MultiSymbol` (4 symbols, 1M ops) runs within 10% of single-symbol throughput; valgrind massif confirms zero malloc calls from the matching hot path. |
+| 26 | **Multi-symbol engine + zero-allocation completion** — `MatchingEngine` routes commands to per-symbol `OrderBook`s (lazy creation, reverse-lookup cancel/amend); `OrderBook::bids_`/`asks_` swapped to `std::pmr::map` backed by `unsynchronized_pool_resource`, eliminating heap traffic in the steady-state hot path. 12 new tests; `BM_MultiSymbol` (4 symbols, 1M ops) runs within 10% of single-symbol throughput. |
+| 27 | **Real FIX 4.2 protocol** — `Fix42Parser` (zero-copy `string_view`) and `Fix42Serializer` replace the toy pipe-delimited parser. Supports Logon/Logout/NewOrderSingle/OrderCancelRequest/OrderCancelReplaceRequest inbound; ExecutionReport (New/PartialFill/Filled/Cancelled/Replaced) outbound. Checksum and BodyLength validated. 25+ new tests, ASan + UBSan clean. |
+| 28 | **TCP session layer + end-to-end demo** — `TcpServer` (`epoll`, non-blocking, `accept4`) and `FIXGateway` wire the FIX 4.2 stack to `MatchingEngine`. `demo/fix_client.py` connects two clients, submits crossing orders, and prints live ExecutionReports. CI gateway self-test added. 20+ new tests, TSan clean. |

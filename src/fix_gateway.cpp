@@ -185,7 +185,7 @@ void FIXGateway::push_outbound(int fd, const std::string& report) {
         ;
 
     char b = 1;
-    ::write(notify_pipe_w_, &b, 1);
+    [[maybe_unused]] auto r = ::write(notify_pipe_w_, &b, 1);
 }
 
 void FIXGateway::drain_outbound() {
